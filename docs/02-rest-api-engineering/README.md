@@ -21,6 +21,7 @@ Work through the chapters below sequentially. Check them off as you complete the
 
 - [ ] [01 - Professional API Design](./01-professional-api-design.md)
 - [ ] [02 - Error Handling & Validation](./02-error-handling-and-validation.md)
+- [ ] [03 - API Security](./03-api-security.md)
 
 *(Note: Additional topics will be added here as they are developed.)*
 
