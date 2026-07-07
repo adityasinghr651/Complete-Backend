@@ -8,8 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 01: Internet Fundamentals** completed (Day 1 to Day 4).
+  - Covered Internet architecture, Client-Server model, HTTP protocols, and REST API basics.
+- **Phase 02: REST API Engineering** completed (Day 5 to Day 7).
+  - Covered Professional API Design, Error Handling & Validation, and API Security.
 - Complete initial repository scaffolding.
-- Phase 01: Internet Fundamentals structure and initial topics (Day 1 and Day 2).
 - Root repository documentation (`README.md`, `CONTRIBUTING.md`, `FAQ.md`, `CODE_OF_CONDUCT.md`).
 - Placeholder files for Cheatsheets, Interviews, and Projects.
 
