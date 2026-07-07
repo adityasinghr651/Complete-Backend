@@ -20,6 +20,7 @@ By the end of this phase, you will be able to:
 Work through the chapters below sequentially. Check them off as you complete them!
 
 - [ ] [01 - Professional API Design](./01-professional-api-design.md)
+- [ ] [02 - Error Handling & Validation](./02-error-handling-and-validation.md)
 
 *(Note: Additional topics will be added here as they are developed.)*
 
