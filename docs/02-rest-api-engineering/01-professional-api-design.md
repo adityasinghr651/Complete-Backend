@@ -1,5 +1,5 @@
-# Day 5: Professional API Design
-*(Deep dive: naming conventions, pagination, filtering, sorting, versioning – from first principles, production-grade, with tradeoffs)*
+# Day 5: Professional API Design (Expanded Deep Dive)
+*(Deep dive: naming conventions, advanced pagination, complex filtering, sorting, versioning – from first principles, production-grade, with tradeoffs)*
 
 ***
 
@@ -51,13 +51,13 @@ then you need **professional API design**.
 
 **Key goals:**
 1. **Consistency** – predictable patterns across all endpoints.
-2. **Discoverability** – easy for developers to understand.
+2. **Discoverability** – easy for developers to understand without reading massive docs.
 3. **Efficiency** – no wasteful data, no huge payloads.
 4. **Evolvability** – can change without breaking existing clients.
 
 ***
 
-### 2.2 Naming Conventions
+### 2.2 Naming Conventions in Depth
 
 #### 2.2.1 Use Resource-Oriented Names (Nouns, Not Verbs)
 
@@ -74,17 +74,11 @@ RESTful APIs use **nouns** for resources:
 > **URL = path to a resource (noun).**  
 > **Method = action (verb).**
 
-#### 2.2.2 Use Plural Nouns for Collections
-
-**Consistency:**
-- `/users` (not `/user` or `/usersList`)
-- `/orders`
-- `/posts`
-
-**Why plural?**
-- Clear that it’s a **collection**.
-- `GET /users` → list of users.
-- `POST /users` → create a new user.
+#### 2.2.2 Handle "Actions" (The Exception to the Noun Rule)
+Sometimes an operation doesn't cleanly map to CRUD. For instance, "Activating" a user or "Refunding" an order.
+**Best Practice:** Treat the action as a sub-resource or use a verb as a suffix.
+- `POST /users/{id}/activate` (Preferred)
+- `POST /orders/{id}/refund` (Preferred)
 
 #### 2.2.3 Use Hierarchical Paths for Relationships
 
@@ -99,51 +93,26 @@ This is **natural hierarchy**:
 /orders/{id}/items   → items in an order
 ```
 
-**Avoid:** `/getOrdersForUser?id=123` (too RPC-like).
+**Avoid nesting too deeply:** `/users/{id}/orders/{id}/items/{id}` is too long. If you need a specific item, just use `/items/{id}`.
 
-#### 2.2.4 Use Lowercase, Hyphen-Cased Paths
+#### 2.2.4 Path Casing
 
 **Best practice:**
-- Paths: lowercase, hyphens for readability.
+- Paths: lowercase, hyphens (kebab-case) for readability.
 - Examples: `/user-profiles`, `/order-items`, `/product-categories`
-
-**Avoid:**
-- `/userProfiles` (camelCase in path is confusing).
-- `/User_Profiles` (mixed casing).
-
-*(Note: Some companies use underscores, but hyphens are more common in web APIs.)*
-
-#### 2.2.5 Use Consistent Suffixes (Optional)
-
-Some teams use:
-- `/api/v1/users`
-- `/api/v2/users`
-
-or simply:
-- `/v1/users`
-- `/v2/users`
-
-*(We’ll cover versioning in detail later.)*
 
 ***
 
-### 2.3 Pagination
+### 2.3 Advanced Pagination
 
 #### Why Pagination Exists
 
-If you have 10M users and do:
-```http
-GET /users
-```
-Default behavior without pagination:
-- Returns **all** users in one response.
-- **Problems:** Huge JSON (100MB+), slow DB query, high memory usage, network latency.
+If you have 10M users and do `GET /users`, returning all users causes:
+- Huge JSON payloads (100MB+).
+- Slow DB queries that lock tables.
+- Out-Of-Memory (OOM) crashes on the server.
 
-**Pagination** = split large result sets into smaller chunks (pages).
-
-#### 2.3.1 Common Pagination Strategies
-
-**A. Offset-Based Pagination (Most Common)**
+#### 2.3.1 Offset-Based Pagination
 Client sends:
 - `page`: which page number.
 - `limit`: how many items per page.
@@ -151,255 +120,163 @@ Client sends:
 ```http
 GET /orders?page=1&limit=20
 ```
-- **Pros:** Simple, intuitive.
-- **Cons:** “Page skipping” if new items are added. “Deep pagination” is slow on large tables (`OFFSET 999990 LIMIT 20`).
-- **Use when:** Data is not extremely large, and perfectly stable pagination isn't required.
+- **Pros:** Simple, intuitive. Allows jumping to a specific page.
+- **Cons:** 
+  - **Page Skipping:** If an item is added to page 1 while the user is viewing page 1, when they click page 2, the last item of page 1 shifts to page 2 (they see a duplicate).
+  - **Deep Pagination Performance:** `OFFSET 100000 LIMIT 20` requires the DB to scan and discard 100,000 rows. It becomes incredibly slow.
 
-**B. Cursor-Based Pagination (Better for Real-Time / Large Data)**
-Client sends:
-- `cursor`: a pointer to the last item on the previous page.
-- `limit`: how many items.
-
-```http
-GET /orders?cursor=abc123&limit=20
-```
-- **Pros:** No deep offset problem. Pagination is stable.
-- **Cons:** Slightly more complex. Cannot jump directly to “page 100”.
-- **Use when:** Large datasets, real-time feeds (e.g., social timelines).
-
-**C. Keyset Pagination (Special Form of Cursor)**
-Similar to cursor, but uses a **stable key**, like `created_at` + `id`.
+#### 2.3.2 Cursor-Based Pagination
+Instead of an offset, the client sends a `cursor` (a pointer to the last item they saw).
 
 ```http
-GET /orders?created_at_after=2026-06-01T12:00:00Z&limit=20
+GET /orders?cursor=eyJpZCI6MTIzLCJkYXRlIjoiMjAyNiJ9&limit=20
 ```
-- **Pros:** Stable, highly efficient with proper indexes.
-- **Cons:** Requires ordered fields.
+*(Notice the cursor is often Base64 encoded JSON to hide DB internals from the client).*
 
-#### 2.3.2 Pagination Response Format
+- **Pros:** 
+  - Highly performant. The DB can use an index: `WHERE id > 123 LIMIT 20`.
+  - Immune to page skipping when new items are added.
+- **Cons:** Cannot jump directly to “page 100”. Must navigate sequentially.
+- **Use when:** Infinite scrolling feeds, large scale datasets.
 
-Two common styles:
+#### 2.3.3 Keyset Pagination (The SQL behind Cursors)
+Keyset pagination relies on a stable, indexed sorting key.
+```sql
+SELECT * FROM orders 
+WHERE (created_at, id) < ('2026-06-01T12:00:00Z', 123)
+ORDER BY created_at DESC, id DESC
+LIMIT 20;
+```
+This guarantees an instant index seek, making it O(1) time complexity regardless of how deep the pagination goes.
 
-**Style 1: Include metadata at top level**
+#### 2.3.4 Pagination Response Format
+
+**Include pagination links (RESTful HATEOAS style):**
 ```json
 {
   "data": [ ... ],
-  "pagination": {
+  "meta": {
     "total": 10000,
-    "page": 1,
-    "limit": 20,
-    "total_pages": 500
-  }
-}
-```
-
-**Style 2: Include pagination links (RESTful)**
-```json
-{
-  "data": [ ... ],
+    "has_next": true
+  },
   "links": {
-    "self": "https://api.example.com/orders?page=1&limit=20",
-    "next": "https://api.example.com/orders?page=2&limit=20",
-    "prev": null
+    "self": "https://api.example.com/orders?cursor=abc",
+    "next": "https://api.example.com/orders?cursor=def"
   }
 }
 ```
-> **Rule:** Pick one style and **use consistently** across all endpoints.
 
 ***
 
-### 2.4 Filtering
+### 2.4 Complex Filtering
 
-#### Why Filtering Exists
-
-Clients often want specific slices of data:
-- “Show me orders with status = pending.”
-- “Show me products in category = shoes.”
-
-**Filtering** = reduce result set based on query parameters.
-
-#### 2.4.1 Simple Filters (Equality)
+#### 2.4.1 Simple Filters & Arrays
 ```http
-GET /orders?status=pending&customer_id=123
+GET /orders?status=pending
 ```
-SQL equivalent:
-```sql
-SELECT * FROM orders WHERE status = 'pending' AND customer_id = 123;
+For multiple values, support comma-separated lists or multiple query params:
+```http
+GET /orders?status=pending,shipped
+GET /orders?status=pending&status=shipped
 ```
+SQL equivalent: `WHERE status IN ('pending', 'shipped')`
 
 #### 2.4.2 Range Filters
+Use suffixes for ranges:
 ```http
-GET /products?min_price=500&max_price=2000
-GET /orders?created_after=2026-06-01&created_before=2026-06-10
+GET /products?price_gte=500&price_lte=2000
 ```
+(`gte` = greater than or equal, `lte` = less than or equal).
 
-#### 2.4.3 Text Search / Partial Match
+#### 2.4.3 Object-Based Filtering (JSON in Query)
+For highly complex APIs, some teams use bracket notation:
 ```http
-GET /users?name=john
+GET /users?filter[name][like]=john&filter[age][gt]=18
 ```
-SQL equivalent:
-```sql
-SELECT * FROM users WHERE name ILIKE 'john%';
-```
-*(Warning: Wildcard searches can be slow. Add indexes and limit result sizes.)*
-
-#### 2.4.4 Multiple Filters Combined
-```http
-GET /orders?status=pending&customer_id=123&min_total=100
-```
-> **Rule:** Each filter parameter = one condition in SQL (combined with `AND`). Use `OR` only when clearly documented.
-
-#### 2.4.5 Filtering vs Pagination
-Often used together:
-```http
-GET /orders?status=pending&page=1&limit=20
-```
-SQL:
-```sql
-SELECT * FROM orders
-WHERE status = 'pending'
-ORDER BY created_at DESC
-OFFSET 0 LIMIT 20;
-```
+This requires a sophisticated query parser on the backend but offers immense flexibility.
 
 ***
 
-### 2.5 Sorting
+### 2.5 Sorting and Database Indexing
 
-#### Why Sorting Exists
-Clients often want “Newest first” or “Cheapest first”. Sorting allows you to order results by one or more fields.
-
-#### 2.5.1 Basic Sorting Pattern
+#### 2.5.1 Basic Sorting
 ```http
-GET /users?sort=created_at&order=desc
+GET /users?sort=-created_at,name
 ```
+*(A common convention: `-` prefix means descending, no prefix means ascending).*
 
-#### 2.5.2 Multiple Fields
-```http
-GET /products?sort=price,created_at&order=asc,desc
-```
-
-#### 2.5.3 Default Sorting
-Always define defaults. If no sort params, use `?sort=created_at&order=desc` for most collections. Document this in API docs.
-
-#### 2.5.4 Sorting + Pagination + Filtering
-```http
-GET /orders?status=pending&sort=created_at&order=desc&page=1&limit=20
-```
+#### 2.5.2 Indexing Implications
+Allowing clients to sort by *any* column is a massive performance risk.
+If a client sorts by an unindexed column on a 10-million row table, the database must perform a "File Sort" in memory, which can take seconds and spike CPU.
+**Best Practice:** Only allow sorting on specific, whitelisted columns that have B-Tree indexes in the database.
 
 ***
 
-### 2.6 Versioning
+### 2.6 Versioning Strategies
 
-#### Why Versioning Exists
-APIs evolve: you add new fields, change structures, or break old behaviors. But clients (mobile apps, partners) may not update immediately.
+APIs evolve. If you change a response structure, you break existing mobile apps that haven't been updated.
 
-**Versioning** allows multiple versions of the same API to coexist safely.
-
-#### 2.6.1 URL-Based Versioning (Most Common)
+#### 2.6.1 URL-Based Versioning (Most Common & Recommended)
 ```http
 GET /v1/users
 GET /v2/users
 ```
-- **Pros:** Clear, simple, easy to debug, browser-accessible.
-- **Cons:** More URLs to manage, version in URL isn't purely RESTful.
+- **Pros:** Explicit, easy to test in a browser, easily routed by API Gateways (AWS API Gateway, Nginx) to completely different backend microservices.
+- **Cons:** Technically violates REST purism (the resource is a user, not a "v1 user").
 
-#### 2.6.2 Header-Based Versioning
+#### 2.6.2 Header-Based Versioning (Content Negotiation)
 ```http
 GET /users
-Accept-Version: v1
+Accept: application/vnd.mycompany.v2+json
 ```
-- **Pros:** Cleaner URLs, more RESTful.
-- **Cons:** Less visible in browser, harder to debug.
+- **Pros:** Clean URLs. Pure REST.
+- **Cons:** Hard to test via simple browser clicks. Harder to cache at the CDN layer.
 
-#### 2.6.3 Strategy for Evolving APIs
-- **v1**: initial API.
-- **v2**: add features, change structure, but keep v1 alive.
-- **Migration:** Document changes, announce a deprecation timeline, and set an end-of-life date for v1.
-
-> **Rule:** Never break a version without notice. Always support at least one previous version for a while.
+#### 2.6.3 Evolving APIs Safely
+- **Additive changes are safe:** Adding a new field to a JSON response won't break clients.
+- **Destructive changes are breaking:** Removing a field, renaming a field, or changing a data type (string to int).
+- **Deprecation Policy:** Add a `Sunset` HTTP header to responses to warn developers that a v1 endpoint will be deactivated on a specific date.
 
 ***
 
 ## SECTION 3: VISUAL DIAGRAMS
 
-### Diagram 1: Pagination + Filtering + Sorting URL
+### Diagram 1: Keyset/Cursor Pagination vs Offset Pagination
 
 ```mermaid
 graph TD
-    A[Client URL:<br/>GET /orders?status=pending...] --> B[Backend parses:<br/>filters, sort, pagination]
-    B --> C[Build SQL:<br/>SELECT * FROM orders WHERE...]
-    C --> D[Return JSON with metadata]
+    subgraph Offset Pagination (Slow at scale)
+        A[GET /orders?offset=100000] --> B[DB scans 100,020 rows]
+        B --> C[DB discards 100,000 rows]
+        C --> D[Returns 20 rows]
+    end
+
+    subgraph Cursor Pagination (Fast at scale)
+        E[GET /orders?cursor=last_id_99999] --> F[DB uses B-Tree Index]
+        F --> G[Instantly jumps to ID 99999]
+        G --> H[Returns next 20 rows]
+    end
 ```
 
 ***
 
-### Diagram 2: API Versioning Flow
+### Diagram 2: Advanced API Versioning Routing
 
 ```mermaid
 graph TD
-    A[Old Client v1] -->|GET /v1/orders| B[API Router]
-    B -->|Route to v1| C[v1 Controller]
-    C --> A
+    A[Client Request] --> B{API Gateway / Load Balancer}
+    B -->|Path starts with /v1/| C[Legacy Backend Service]
+    B -->|Path starts with /v2/| D[New Microservice]
     
-    D[New Client v2] -->|GET /v2/orders| B
-    B -->|Route to v2| E[v2 Controller]
-    E --> D
+    C --> E[(Legacy DB)]
+    D --> F[(New Optimized DB)]
 ```
 
 ***
 
-## SECTION 4: PRODUCTION EXAMPLES
+## SECTION 4: BACKEND IMPLEMENTATION
 
-### Example 1: BigTech-style Pagination (Cursor-Based)
-E-commerce product listings (infinite scroll):
-```http
-GET /products?cursor=xyz123&limit=24
-```
-Response:
-```json
-{
-  "data": [...],
-  "next_cursor": "abc456"
-}
-```
-
-### Example 2: Startup-style Pagination (Offset-Based)
-Social media posts:
-```http
-GET /posts?page=2&limit=10&sort=created_at&order=desc
-```
-Response:
-```json
-{
-  "data": [...],
-  "pagination": {
-    "total": 500,
-    "page": 2,
-    "limit": 10,
-    "total_pages": 50
-  }
-}
-```
-
-### Example 3: Filtering & Sorting
-Food delivery app:
-```http
-GET /restaurants?category=biryani&min_rating=4&sort=rating&order=desc
-```
-
-### Example 4: API Versioning
-Auth API:
-```http
-GET /v1/auth/token  // returns { token: string }
-GET /v2/auth/token  // returns { access_token, refresh_token, expires_at }
-```
-
-***
-
-## SECTION 5: BACKEND IMPLEMENTATION
-
-Let’s build a **professional-style API** for `orders`. Focus on `GET /v1/orders`.
+Let’s build a **professional-style API** for `orders` handling pagination, filtering, and sorting robustly.
 
 ### Request Parsing (Node.js + Express)
 
@@ -408,122 +285,131 @@ app.get('/v1/orders', async (req, res) => {
   const {
     status,
     min_total,
-    sort = 'created_at',
-    order = 'desc',
-    page = 1,
+    sort = '-created_at', // Default sort descending
+    cursor, // For cursor pagination
     limit = 20
   } = req.query;
 
-  // Validate page/limit
-  const pageNum = Math.max(1, parseInt(page, 10));
-  const limitNum = Math.max(1, parseInt(limit, 10));
-  const offset = (pageNum - 1) * limitNum;
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10))); // Cap limit at 100
 
-  // Build query conditions
+  // 1. Build dynamic WHERE clause safely
   const conditions = [];
   const values = [];
+  let paramIndex = 1;
 
   if (status) {
-    conditions.push('status = $1');
+    conditions.push(`status = $${paramIndex++}`);
     values.push(status);
   }
+  
   if (min_total) {
-    conditions.push('total >= $1');
+    conditions.push(`total >= $${paramIndex++}`);
     values.push(parseFloat(min_total));
+  }
+
+  // 2. Cursor Pagination Logic
+  if (cursor) {
+    // Decode base64 cursor -> { id: 1234, created_at: '...' }
+    const decodedCursor = JSON.parse(Buffer.from(cursor, 'base64').toString('ascii'));
+    
+    // Keyset pagination condition (assuming sorting by created_at DESC, id DESC)
+    conditions.push(`(created_at, id) < ($${paramIndex++}, $${paramIndex++})`);
+    values.push(decodedCursor.created_at, decodedCursor.id);
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  // SQL
+  // 3. Sorting (Whitelist allowed columns!)
+  const allowedSorts = {
+    '-created_at': 'created_at DESC, id DESC',
+    'created_at': 'created_at ASC, id ASC',
+    'total': 'total ASC, id ASC',
+    '-total': 'total DESC, id DESC'
+  };
+  const sqlSort = allowedSorts[sort] || allowedSorts['-created_at'];
+
+  // 4. Execute Query
   const sql = `
     SELECT * FROM orders
     ${whereClause}
-    ORDER BY ${sort} ${order}
-    OFFSET ${offset} LIMIT ${limitNum}
+    ORDER BY ${sqlSort}
+    LIMIT ${limitNum}
   `;
 
   const rows = await db.query(sql, values);
 
+  // 5. Generate next cursor
+  let nextCursor = null;
+  if (rows.length === limitNum) {
+    const lastRow = rows[rows.length - 1];
+    const cursorObj = { id: lastRow.id, created_at: lastRow.created_at };
+    nextCursor = Buffer.from(JSON.stringify(cursorObj)).toString('base64');
+  }
+
   res.json({
     data: rows,
-    pagination: {
-      page: pageNum,
-      limit: limitNum,
-      total: rows.length // Simplified
+    meta: {
+      has_next: nextCursor !== null,
+      next_cursor: nextCursor
     }
   });
 });
 ```
 
-**Key points:**
-- Query params for filters, sort, pagination.
-- Use defaults for `sort`, `order`, `page`, `limit`.
-- Validate and sanitize inputs.
+**Key production points:**
+- Limits are hard-capped (e.g., `Math.min(100, limit)`). You cannot allow a client to request 1,000,000 items.
+- Sorting uses a strict dictionary mapping (`allowedSorts`) preventing SQL injection.
+- The cursor is Base64 encoded to abstract internal column structures from the frontend.
 
 ***
 
-## SECTION 6: COMMON MISTAKES
+## SECTION 5: COMMON MISTAKES
 
-1. **Inconsistent naming:** `/getUser`, `/get_users`. (Fix: use `/users`).
-2. **No pagination:** Huge payloads. (Fix: always paginate collections).
-3. **Using `page` and `offset` together:** Confusing. (Fix: use `page` + `limit` or cursor-based).
-4. **Not validating sort/order:** Allowing arbitrary column names opens up SQL injection risk. (Fix: validate against allowed fields).
-5. **Mixing versioning styles:** Some endpoints use `/v1/`, some use header. (Fix: pick one style and stick to it).
-6. **Over-filtering in URL:** Too many params create long URLs. (Fix: use grouping or JSON bodies for complex filters).
-7. **Returning raw DB errors:** Leaks internals. (Fix: implement global error handling).
+1. **Allowing deep offset pagination:** Results in database DOS (Denial of Service) attacks. 
+2. **Not hard-capping `limit`:** Client requests `?limit=99999999`, crashing your API. (Fix: enforce a max limit of 50-100).
+3. **Not validating sort/order:** Allowing arbitrary column names opens up SQL injection risk. (Fix: validate against allowed fields).
+4. **Breaking contracts:** Renaming a field from `userId` to `customer_id` without bumping the API version.
+5. **Over-filtering in URL:** Too many params create long URLs that hit HTTP max length limits. (Fix: use `POST /search` with a JSON body for complex filters).
 
 ***
 
-## SECTION 7: INTERVIEW QUESTIONS
+## SECTION 6: INTERVIEW QUESTIONS
 
 1. Why do we use **plural nouns** in REST endpoints?  
-2. What is the difference between **offset-based** and **cursor-based** pagination? When would you use each?  
-3. How would you implement filtering by status and range (min/max price) in SQL?  
-4. How do you handle **sorting** safely without allowing arbitrary column injection?  
-5. Why is API **versioning** important? Give examples of breaking changes.  
-6. What are the tradeoffs of **URL-based** vs **header-based** versioning?  
-7. How would you design an API for a feed (messages, notifications) with pagination?  
-8. Show an example of a well-designed URL for listing orders with filters, sorting, and pagination.  
-9. Why is consistency in API design important for large teams?  
-10. What is a “deep pagination” problem, and how do you solve it?
+2. Detail the exact database performance differences between **offset-based** and **cursor-based** pagination.
+3. How do you implement filtering by multiple statuses (e.g., pending OR shipped) in a RESTful way?
+4. How do you handle **sorting** safely without allowing arbitrary column injection? What indexes do you need?
+5. Why is API **versioning** important? Give examples of additive vs destructive breaking changes.
+6. What are the tradeoffs of **URL-based** vs **header-based** versioning from an infrastructure (CDN/Gateway) perspective?
+7. Explain Keyset pagination and write the SQL `WHERE` clause for it.
+8. What is a “deep pagination” problem, and why does `OFFSET` get slower the deeper you go?
 
 ***
 
-## SECTION 8: REVISION NOTES (CHEAT SHEET)
+## SECTION 7: REVISION NOTES (CHEAT SHEET)
 
-- **Naming**: Use plural nouns (`/users`). Use hyphens (`/order-items`). Use hierarchy (`/users/{id}/orders`).
+- **Naming**: Use plural nouns (`/users`). Treat actions as sub-resources (`/users/{id}/activate`).
 - **Pagination**: 
-  - Offset: `page`, `limit` (Simple).
-  - Cursor: `cursor`, `limit` (Stable, scalable). Always paginate collections.
-- **Filtering**: Use query params (`?status=pending`). Map to SQL `WHERE`.
-- **Sorting**: `?sort=created_at&order=desc`. Always validate fields.
-- **Versioning**: URL (`/v1/users`) or Header (`Accept-Version`). Never break old versions without notice.
+  - Offset: `page`, `limit` (Simple, but slow at scale).
+  - Cursor/Keyset: `cursor`, `limit` (Fast, relies on indexing, immune to data shifting). Always hard-cap the `limit`.
+- **Filtering**: Use query params. Map to SQL `WHERE`. Use arrays for multiple values (`?status=A,B`).
+- **Sorting**: Map clean query params (`-created_at`) to secure, whitelisted SQL columns. Require B-Tree indexes on sort columns.
+- **Versioning**: URL (`/v1/users`) is most pragmatic. Additive changes are safe; destructive changes require a new version.
 
 ***
 
-## SECTION 9: HANDS-ON ASSIGNMENT
+## SECTION 8: HANDS-ON ASSIGNMENT
 
 Design a **professional REST API** for `products` with:
-- Pagination (offset-based).
-- Filtering by `category`, `min_price`, `max_price`, `in_stock`.
-- Sorting by `price`, `created_at`, `rating`.
-- Versioning: `/v1/products`, `/v2/products`.
+- Cursor-based pagination.
+- Filtering by `category`, `price_gte`, `price_lte`, `in_stock`.
+- Sorting by `-price`, `price`, `-created_at`.
+- Versioning: `/v1/products`.
 
 **Tasks:**
-1. Write the full URL for: List products in category “shoes”, price 500–2000, sorted by price asc, page 2, 20 per page.
-2. Write the SQL for that query.
-3. Define response JSON with pagination metadata.
-
-***
-
-## SECTION 10: MINI PROJECT
-
-Implement `GET /v1/products` with:
-- Pagination (page, limit).
-- Filters: `category`, `min_price`, `max_price`.
-- Sorting: `sort`, `order`.
-
-*(Use in-memory data or a simple DB to test the implementation.)*
+1. Write the full URL for: List products in category “shoes”, price >= 500 and <= 2000, sorted by price asc, requesting 20 items and passing a cursor.
+2. Write the secure Node.js pseudo-code to parse the query parameters and build the SQL query.
+3. Define response JSON including HATEOAS `links` for the next page.
 
 ***
 
@@ -531,6 +417,6 @@ Implement `GET /v1/products` with:
 
 Design the full URL for:
 
-> “List orders with status = pending, total >= 100, sorted by created_at descending, page 3, 50 per page.”
+> “List orders with status = pending, total >= 100, sorted by created_at descending, capped at 50 per page.”
 
-Then write the corresponding SQL query (with `WHERE`, `ORDER BY`, `OFFSET`, `LIMIT`).
+Then write the corresponding SQL query (with `WHERE`, `ORDER BY`, `LIMIT`) assuming this is the first page (no cursor provided yet).
