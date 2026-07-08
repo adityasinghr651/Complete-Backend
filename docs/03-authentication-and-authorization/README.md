@@ -22,8 +22,9 @@ By the end of this phase, you will understand:
 Work through the chapters below sequentially. Check them off as you complete them!
 
 - [ ] [01 - Authentication & Authorization Fundamentals](./01-auth-fundamentals.md)
+- [ ] [02 - Sessions & Cookies](./02-sessions-and-cookies.md)
 
-*(Note: Additional topics like Sessions & Cookies, JWTs, and OAuth will be added here as they are developed.)*
+*(Note: Additional topics like JWTs and OAuth will be added here as they are developed.)*
 
 ***
 
