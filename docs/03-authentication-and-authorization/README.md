@@ -14,6 +14,7 @@ By the end of this phase, you will understand:
 - The mechanics of Session & Cookie-based authentication.
 - Stateless authentication using JSON Web Tokens (JWT).
 - Third-party authentication using OAuth 2.0 (Google, GitHub, etc.).
+- Role-Based Access Control (RBAC) and permission management.
 
 ***
 
@@ -25,6 +26,7 @@ Work through the chapters below sequentially. Check them off as you complete the
 - [ ] [02 - Sessions & Cookies](./02-sessions-and-cookies.md)
 - [ ] [03 - JWT (JSON Web Tokens)](./03-jwt.md)
 - [ ] [04 - OAuth 2.0 (Google/GitHub Login)](./04-oauth.md)
+- [ ] [05 - Role-Based Access Control (RBAC)](./05-rbac.md)
 
 ***
 
