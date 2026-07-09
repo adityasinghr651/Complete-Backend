@@ -1,12 +1,12 @@
-# Day 20: Redis Architecture and Data Structures  
-*(Detailed, step-by-step, from first principles — with definitions, simple language, Hinglish intuition, diagrams, and production examples)*
+# Day 20: Redis Architecture and Advanced Data Structures (MERN Stack Edition)  
+*(Detailed, step-by-step, from first principles — with definitions, simple language, Hinglish intuition, diagrams, and production Node.js examples)*
 
 ---
 
 ## SECTION 1 — Learning Objectives
 
 **What will you learn?**
-You will learn what Redis is, why it is vastly superior to basic Key-Value caches like Memcached, how its internal single-threaded event loop works, and how to use its rich data structures in a production codebase.
+You will learn what Redis is, why it is vastly superior to basic Key-Value caches like Memcached, how its internal single-threaded event loop works, and how to use its rich data structures in a production MERN codebase.
 
 **Why is this important?**
 Redis is the most widely used in-memory database in the world. Whether you are at a Y-Combinator startup or at Meta, you will use Redis. Understanding it deeply separates junior developers (who just use it to cache JSON strings) from senior engineers (who use it for leaderboards, rate limiting, and geospatial queries).
@@ -14,14 +14,14 @@ Redis is the most widely used in-memory database in the world. Whether you are a
 **Where is it used?**
 Session management, real-time leaderboards, pub/sub messaging, rate limiting, caching API responses, and fast queueing.
 
-**Prerequisites:** Understanding of RAM vs. Disk latency (Day 19), basic data structures (Arrays, Hash Maps), and basic Java/Spring Boot.
+**Prerequisites:** Understanding of RAM vs. Disk latency (Day 19), basic data structures (Arrays, Hash Maps), and basic Node.js/Express.js.
 
 ---
 
 ## SECTION 2 — Motivation
 
 **Why does this concept exist?**
-Before Redis, if you wanted to cache data, you used Memcached. Memcached was great, but it was just a giant, dumb `String -> String` dictionary. If you cached a user's profile JSON and only wanted to update their "age", you had to fetch the entire JSON into your backend, parse it, update the age, re-serialize it, and send the whole string back to Memcached. This wasted massive network bandwidth and CPU.
+Before Redis, if you wanted to cache data, you used Memcached. Memcached was great, but it was just a giant, dumb `String -> String` dictionary. If you cached a user's profile JSON and only wanted to update their "age", you had to fetch the entire JSON into your Node.js backend, parse it, update the age, re-serialize it, and send the whole string back to Memcached. This wasted massive network bandwidth and CPU.
 
 **What problem were engineers trying to solve?**
 Engineers needed a cache that was *smart*. They needed a cache that understood data structures natively, so you could tell the cache: "Hey, increment the age field in this user's hash map," without transferring the whole object over the network.
@@ -37,17 +37,17 @@ Memcached kaisa tha? (How was Memcached?) You give him a box labeled "Groceries"
 **Redis is a smart assistant.**
 Instead of a sealed box, you tell Redis: "Keep a List called Groceries." Later, you just shout: "Redis, push Milk to the Groceries list!" Redis does the operation *internally* and instantly. You never have to lift the heavy box.
 
-Because Redis understands Lists, Sets, and Maps natively in RAM, it saves your backend servers from doing the heavy lifting.
+Because Redis understands Lists, Sets, and Maps natively in RAM, it saves your Node.js backend from doing the heavy lifting.
 
 ---
 
 ## SECTION 4 — Formal Definitions
 
-* **Redis (Remote Dictionary Server):** An open-source, in-memory, key-value data store that supports complex data structures, used as a database, cache, message broker, and streaming engine.
-* **Key-Value Store:** A simple database paradigm where every item is stored as a "Value" and retrieved via a unique "Key".
+* **Redis (Remote Dictionary Server):** An open-source, in-memory, key-value data store that supports complex data structures.
+* **Key-Value Store:** A database paradigm where every item is stored as a "Value" and retrieved via a unique "Key".
 * **RDB (Redis Database Backup):** A persistence mechanism that takes point-in-time snapshots of your dataset at specified intervals.
 * **AOF (Append Only File):** A persistence mechanism that logs every single write operation received by the server, which can be replayed to reconstruct the dataset.
-* **Event Loop:** An infinite loop inside a program that waits for and dispatches events or messages (like incoming network requests).
+* **Event Loop:** An infinite loop inside a program that waits for and dispatches events (like incoming network requests). Both Node.js and Redis use an event-driven, single-threaded model.
 
 ---
 
@@ -61,173 +61,211 @@ He was building a real-time web analytics startup called LLOOGG. MySQL was too s
 
 ---
 
-## SECTION 6 — Deep Theory
+## SECTION 6 — Deep Theory: Core & Advanced Data Structures
 
-To master Redis, you must understand two foundational pillars: **Data Structures** and **Single-Threaded Speed**.
+To build scalable MERN applications, you must understand both the basic and advanced data structures inside Redis, as well as its single-threaded nature.
 
-### 1. The Data Structures
+### 1. Single-Threaded Architecture
 
-Unlike traditional databases that use Tables and Rows, Redis uses Keys that point to Data Structures.
+Most databases spawn a new OS thread for every incoming connection. Redis does **not**.
+Redis uses a **Single-Threaded Event Loop**. It processes exactly one command at a time.
 
-* **Strings:** The most basic type. Can hold text, serialized JSON, or integers. (Great for caching API responses or simple counters).
+**Why is this incredibly fast?**
+Because accessing RAM takes nanoseconds. Context-switching between CPU threads takes microseconds (1000x slower). By avoiding thread locks, race conditions, and context switching, a single-threaded Redis instance can process upwards of 100,000+ requests per second.
+
+### 2. Core Data Structures
+
+* **Strings:** The most basic type. Can hold text, serialized JSON, or integers.
 * **Lists:** Linked lists of strings. (Great for timelines or basic queues).
 * **Sets:** Unordered collections of unique strings. (Great for tags, or tracking unique IP addresses).
 * **Sorted Sets (ZSets):** Like Sets, but every item has a "score". Redis keeps the list perfectly sorted by this score in real-time. (The ultimate solution for Leaderboards).
 * **Hashes:** Maps composed of fields associated with values. (Perfect for storing objects like a User Profile).
-* **Advanced:** Bitmaps (for DAU tracking), HyperLogLog (for estimating unique views using tiny memory), Geospatial indexes (for "find Uber drivers near me").
 
-### 2. Single-Threaded Architecture
+### 3. Advanced Data Structures
 
-Most databases (like PostgreSQL) spawn a new OS thread for every incoming connection. Redis does **not**.
-Redis uses a **Single-Threaded Event Loop**. It processes exactly one command at a time.
-
-Why is this incredibly fast?
-Because accessing RAM takes nanoseconds. Context-switching between CPU threads takes microseconds (1000x slower). By avoiding thread locks, race conditions, and context switching, a single-threaded Redis instance can process upwards of 100,000+ requests per second on a basic machine.
-
----
-
-## SECTION 7 — Internal Working
-
-What happens inside the server CPU when 10,000 users send a Redis command at exactly the same time?
-
-1. **Network I/O Multiplexing:** Redis uses OS-level features (like `epoll` in Linux). The OS listens to all 10,000 TCP sockets.
-2. **The Queue:** As commands arrive over the network, `epoll` places them into a sequential queue.
-3. **The Event Loop:** The single Redis thread pulls the first command from the queue, executes it in RAM (e.g., $O(1)$ Hash lookup), and writes the response to the output buffer.
-4. **Next:** It immediately grabs the next command.
-
-Because memory is so fast, executing a command takes roughly 1 microsecond. It burns through the queue so fast that to the outside world, it *looks* parallel.
-
-**Memory Management & Eviction:**
-RAM is finite. When Redis reaches its `maxmemory` limit, it must evict (delete) old data to make room for new data. The most common policy is **LRU (Least Recently Used)**—Redis deletes the keys that haven't been accessed in the longest time.
+* **Streams:** An append-only log data structure. It represents a continuous stream of events.
+  * **Why use it?** For Event-Driven systems (microservices). Streams allow **Consumer Groups**—multiple Node.js workers can read from the same stream, and Redis remembers which worker read which message.
+* **Bitmaps:** A set of bit-level operations applied to a String.
+  * **Why use it?** Tracking Daily Active Users (DAU) for 1 million users. Storing 1 million user IDs in an array takes megabytes. Flipping bits takes exactly **125 Kilobytes**.
+* **HyperLogLog:** A probabilistic data structure used to estimate the number of unique elements.
+  * **Why use it?** Counting unique IP addresses visiting your website. Uses a maximum of **12 KB of memory**, whether you count 1 thousand or 1 billion IPs, with 99.19% accuracy. (Hinglish: Jaise bheed dekh kar estimate lagana ki yahan 10,000 log hain).
+* **Pub/Sub (Publish/Subscribe):** A messaging paradigm for real-time broadcasting.
+  * **Internal Working:** It is **"Fire and Forget"**. If a Node.js server crashes and misses a message, it is lost forever. Used heavily with Socket.io for real-time chat.
 
 ---
 
-## SECTION 8 — Visual Diagrams
+## SECTION 7 — Internal Architecture & Memory
 
-### Redis Single-Threaded Event Loop Architecture
+### 1. Persistence: RDB vs AOF
+
+Since Redis is in RAM, what happens when the AWS EC2 instance restarts? To prevent complete data loss, Redis offers persistence.
+
+**RDB (Redis Database Backup):**
+* **How it works:** Takes a snapshot of your entire RAM and saves it to a `.rdb` file at specific intervals.
+* **Internals (`fork()`):** Redis uses the Linux `fork()` system call to create a background clone. The clone writes data to disk while the main process serves Node.js requests without blocking.
+* **Tradeoff:** Fast restarts, but you lose data written since the last snapshot.
+
+**AOF (Append Only File):**
+* **How it works:** Logs *every single write command* into an `.aof` file in real-time.
+* **Internals:** On crash, Redis replays every command to rebuild the RAM state.
+* **Tradeoff:** No data loss, but the file size grows massively, and server restart is slower.
+* *Production Standard:* Use both. RDB for fast restarts, AOF for data safety.
+
+### 2. Memory Management & Eviction Policies
+
+When your Node app writes 2.1GB into a 2GB Redis instance, Redis hits `maxmemory`. You must configure an **Eviction Policy**:
+
+1. `noeviction`: (Default) Returns an error to your Node app. Your API crashes if not handled.
+2. `allkeys-lru`: Deletes the Least Recently Used keys. (Best for standard caching).
+3. `volatile-lru`: Deletes LRU keys, but *only* those that have a TTL (expiration) set.
+4. `allkeys-lfu`: Deletes the Least *Frequently* Used keys.
+
+### 3. Expiration (TTL Internals)
+
+How does `redis.setex("key", 60, "value")` work?
+1. **Passive Expiration:** When Node.js tries to `GET` the key, Redis checks the timestamp and deletes it on the spot if expired.
+2. **Active Expiration:** 10 times a second, Redis randomly tests keys with TTLs and deletes the expired ones.
+
+---
+
+## SECTION 8 — Advanced Execution Flow
+
+### 1. Transactions (MULTI / EXEC / WATCH)
+
+In Redis, a transaction groups commands together so they execute sequentially without any other client interrupting.
+
+* `MULTI`: Starts the transaction block.
+* `EXEC`: Executes all commands in the block.
+* **The Catch:** If one command fails (e.g., incrementing a non-integer), Redis *still executes the rest*. There is **no rollback**.
+
+### 2. Lua Scripting
+
+Every time Node.js sends a command to Redis and waits, you pay a "Network Latency" tax. If logic requires reading a value, doing math in Node, and writing it back, a Race Condition can occur.
+
+* **Solution:** Write a script in the Lua language and send it to Redis. Redis executes the script **atomically**. Since Redis is single-threaded, no other command can run while the script executes.
+
+### 3. Redis Modules
+
+Redis can be extended using C-compiled modules:
+* **RediSearch:** Full-text search engine capability.
+* **RedisJSON:** Natively store and query nested JSON documents.
+
+---
+
+## SECTION 9 — Visual Diagrams
+
+### Redis Single-Threaded Event Loop
 
 ```text
-Concurrent Clients           OS Kernel (epoll)         Redis Process (Single Thread)
+Concurrent Node.js Clients   OS Kernel (epoll)         Redis Process (Single Thread)
 +----------+ 
-| Client 1 | --(GET x)--> +-------------------+       +-------------------------+
+| Node API | --(GET x)--> +-------------------+       +-------------------------+
 +----------+              |                   |       |      Command Queue      |
                           | TCP Socket Array  | ----> | [GET x][SET y][INCR z]  |
 +----------+              | (Multiplexer)     |       |           |             |
-| Client 2 | --(SET y)--> |                   |       +-----------|-------------+
+| Node API | --(SET y)--> |                   |       +-----------|-------------+
 +----------+              +-------------------+                   | (One by one)
                                                                   v
 +----------+                                          +-------------------------+
-| Client 3 | --(INCR z)->                             |   RAM Execution Engine  |
+| Node API | --(INCR z)->                             |   RAM Execution Engine  |
 +----------+                                          |  (Hash map data lookup) |
                                                       +-------------------------+
 ```
 
 ---
 
-## SECTION 9 — Production Examples
+## SECTION 10 — Node.js / MERN Backend Implementation
 
-**Twitter (X) Home Timeline:**
-When you open Twitter, querying the relational database for the latest tweets of the 1,000 people you follow would take seconds. Instead, Twitter uses **Redis Lists**. Every time someone you follow tweets, their tweet ID is `PUSH`ed into your specific Redis List. When you open the app, Twitter just reads your Redis List ($O(1)$ time complexity).
+Let's implement these advanced concepts using `ioredis` (the production-standard Redis client for Node.js).
 
-**Gaming Companies (Leaderboards):**
-Games like PUBG or Call of Duty need real-time global leaderboards. Sorting 10 million rows in MySQL takes minutes. In Redis, they use **Sorted Sets** (`ZADD`). When a player gets a kill, Redis instantly adjusts their rank in $O(\log N)$ time. You can fetch the top 10 players instantly.
+**1. Setup (`npm install ioredis`)**
 
----
+```javascript
+const Redis = require('ioredis');
 
-## SECTION 10 — Backend Implementation
-
-Let's implement a real-world use case in Java/Spring Boot: **A User Session & Profile Cache using Redis Hashes**.
-
-**1. Dependencies (`pom.xml`):**
-
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-data-redis</artifactId>
-</dependency>
+// Connect to Redis (Default is localhost:6379)
+const redis = new Redis({
+  host: '127.0.0.1',
+  port: 6379,
+  maxRetriesPerRequest: null // Required for advanced queueing features
+});
 ```
 
-**2. Redis Configuration:**
-We configure a `RedisTemplate` to tell Spring how to serialize Java objects into Redis Strings/Hashes.
+**2. Bitmaps: Tracking Daily Active Users (DAU)**
+Instead of storing user IDs in a Mongo Collection, we use a single bit per user.
 
-```java
-@Configuration
-public class RedisConfig {
+```javascript
+async function markUserActive(userId) {
+  // Key format: dau:YYYY-MM-DD
+  const today = new Date().toISOString().split('T')[0];
+  const key = `dau:${today}`;
+  
+  // Set the bit at the offset corresponding to the userId to 1
+  // If user ID is 5000, we flip the 5000th bit. Time complexity: O(1)
+  await redis.setbit(key, userId, 1);
+}
 
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
-        
-        // Use String serialization for Keys
-        template.setKeySerializer(new StringRedisSerializer());
-        // Use JSON serialization for Values
-        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-        template.setHashKeySerializer(new StringRedisSerializer());
-        template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
-        
-        return template;
-    }
+async function getDailyActiveUsers() {
+  const today = new Date().toISOString().split('T')[0];
+  const key = `dau:${today}`;
+  
+  // Count how many bits are set to 1 in this string
+  const activeCount = await redis.bitcount(key);
+  return activeCount;
 }
 ```
 
-**3. Service Implementation (Using Redis Hash):**
-Instead of caching a massive JSON string, we use Redis Hashes so we can update specific fields (like `loginCount`) without pulling the whole object.
+**3. HyperLogLog: Counting Unique Page Views**
 
-```java
-@Service
-public class UserService {
+```javascript
+async function recordPageView(pageId, userIp) {
+  const key = `page_views:${pageId}`;
+  
+  // pfadd stands for "Probabilistic Feature Add". 
+  // It hashes the IP and updates the internal 12KB data structure.
+  await redis.pfadd(key, userIp);
+}
 
-    private final RedisTemplate<String, Object> redisTemplate;
-    private static final String USER_CACHE_PREFIX = "user:";
+async function getUniqueViewCount(pageId) {
+  // pfcount returns the estimated unique count
+  return await redis.pfcount(`page_views:${pageId}`);
+}
+```
 
-    public UserService(RedisTemplate<String, Object> redisTemplate) {
-        this.redisTemplate = redisTemplate;
-    }
+**4. Transactions: Bank Transfer Example**
+Ensuring that withdrawing from Account A and depositing to Account B happens without interruption.
 
-    // Save user to Redis Hash
-    public void cacheUser(String userId, String name, int age) {
-        String key = USER_CACHE_PREFIX + userId;
-        
-        // HSET user:123 name "John" age 25
-        redisTemplate.opsForHash().put(key, "name", name);
-        redisTemplate.opsForHash().put(key, "age", age);
-        
-        // Set TTL of 1 hour so RAM doesn't fill up permanently
-        redisTemplate.expire(key, Duration.ofHours(1));
-    }
-
-    // Update JUST the age, without fetching the rest of the profile!
-    public void incrementUserAge(String userId) {
-        String key = USER_CACHE_PREFIX + userId;
-        
-        // HINCRBY user:123 age 1 (Happens purely in Redis C code, insanely fast)
-        redisTemplate.opsForHash().increment(key, "age", 1);
-    }
+```javascript
+async function transferMoney(fromAccount, toAccount, amount) {
+  try {
+    // Start a pipeline transaction
+    const pipeline = redis.multi();
     
-    // Fetch a specific field
-    public String getUserName(String userId) {
-        String key = USER_CACHE_PREFIX + userId;
-        return (String) redisTemplate.opsForHash().get(key, "name");
-    }
+    // Queue the commands
+    pipeline.decrby(`balance:${fromAccount}`, amount);
+    pipeline.incrby(`balance:${toAccount}`, amount);
+    
+    // Execute them sequentially inside Redis
+    const results = await pipeline.exec();
+    console.log("Transfer successful:", results);
+  } catch (error) {
+    console.error("Transfer failed", error);
+  }
 }
 ```
-
-*(Note for Node.js devs: The equivalent would be using the `ioredis` package, calling `redis.hset('user:123', 'name', 'John')` and `redis.hincrby('user:123', 'age', 1)`).*
 
 ---
 
 ## SECTION 11 — Request Lifecycle
 
-Trace an `incrementUserAge` request:
+Trace an `incrementUserAge` request via a Redis Hash:
 
 1. **Client:** POST `/users/123/birthday`
-2. **Spring Boot Controller:** Calls `UserService.incrementUserAge()`.
-3. **Network:** Spring uses a connection pool (Lettuce library) to send a TCP packet with the command `HINCRBY user:123 age 1` to the Redis Server.
-4. **Redis (epoll):** The OS network layer receives the packet and adds it to the Event Loop Queue.
-5. **Redis (Execution):** The single thread reads `HINCRBY`, finds `user:123` in RAM ($O(1)$), finds the `age` field ($O(1)$), increments the integer, and writes `2` to the output buffer.
-6. **Response:** Redis sends the TCP packet back. Spring Boot returns `200 OK`.
-*Total time: ~1-2 milliseconds.*
+2. **Express.js Route:** Calls `redis.hincrby('user:123', 'age', 1)`.
+3. **Network:** `ioredis` sends a TCP packet to the Redis Server.
+4. **Redis (epoll):** The OS network layer adds it to the Event Loop Queue.
+5. **Redis (Execution):** The single thread reads `HINCRBY`, finds `user:123` ($O(1)$), finds `age` ($O(1)$), increments, and writes to output.
+6. **Response:** Redis sends the TCP packet back. Express returns `200 OK`.
 
 ---
 
@@ -236,18 +274,17 @@ Trace an `incrementUserAge` request:
 **Time Complexity of core commands:**
 * `GET` / `SET` (Strings): $O(1)$
 * `HGET` / `HSET` (Hashes): $O(1)$
-* `LPUSH` / `RPOP` (Lists): $O(1)$
-* `ZADD` (Sorted Sets): $O(\log n)$ (Because it maintains a Skip List + Hash Table internally).
+* `ZADD` (Sorted Sets): $O(\log n)$ (Because it maintains a Skip List internally).
 
-**Bottleneck:** Because Redis is single-threaded, **CPU speed matters more than CPU cores**. A 64-core processor won't make a single Redis instance faster. Furthermore, if you run a slow command (like `KEYS *` which scans the entire database in $O(N)$ time), **it blocks the single thread**. Every other user in the world will have to wait until that scan finishes.
+**Bottleneck:** Because Redis is single-threaded, **CPU speed matters more than CPU cores**. A 64-core processor won't make a single Redis instance faster. If you run a slow command (like `KEYS *`), **it blocks the single thread**, causing all Express APIs connected to it to timeout.
 
 ---
 
 ## SECTION 13 — Security
 
-1. **Network Exposure:** Never expose Redis directly to the public internet (Port 6379). It should only be accessible within your private VPC (Virtual Private Cloud).
+1. **Network Exposure:** Never expose Redis directly to the public internet (Port 6379). It should only be accessible within your private VPC.
 2. **Authentication:** Configure `requirepass` in `redis.conf` to require a password.
-3. **Command Renaming:** In production, dangerous commands like `KEYS`, `FLUSHALL` (which deletes the entire database), and `CONFIG` should be renamed or disabled in `redis.conf` so developers don't accidentally run them and cause an outage.
+3. **Command Renaming:** In production, dangerous commands like `KEYS`, `FLUSHALL`, and `CONFIG` should be renamed or disabled.
 
 ---
 
@@ -255,60 +292,53 @@ Trace an `incrementUserAge` request:
 
 **Advantages:**
 * Unmatched speed (Sub-millisecond latency).
-* Rich data structures reduce application-side compute.
-* Built-in persistence (RDB/AOF) means it can act as a primary database for certain use cases.
+* Rich data structures reduce Node.js compute requirements.
+* Built-in persistence allows it to act as a primary database for certain use cases.
 
 **Disadvantages:**
-* **Cost:** RAM is expensive. Storing 1TB of data in PostgreSQL (Disk) is cheap. Storing 1TB in Redis (RAM) requires an expensive server cluster.
-* **Single Point of Failure:** If not configured with replication (Day 22), a server crash loses the volatile memory state (or loses the few seconds since the last AOF write).
+* **Cost:** RAM is expensive. Storing massive data requires an expensive server cluster.
+* **Single Point of Failure:** Without replication (Day 22), a server crash temporarily takes down caching.
 * **Thread Blocking:** One bad $O(N)$ command halts the entire system.
 
 ---
 
-## SECTION 15 — Common Mistakes
+## SECTION 15 — Common Mistakes (Node.js Specific)
 
-1. **Using `KEYS *` in Production:** Beginners often use `KEYS pattern*` to search for keys. This is an $O(N)$ operation. If you have 10 million keys, it will freeze the Redis thread for seconds, taking down your entire backend. **Use `SCAN` instead**, which iterates without blocking.
-2. **Storing Massive JSONs as Strings:** If you frequently update parts of a JSON, use Hashes. Don't pull 5MB strings over the network just to change a boolean flag.
-3. **No Eviction Policy:** Forgetting to set a TTL (Time to Live) on cache keys and setting `maxmemory-policy noeviction`. When RAM fills up, Redis will crash or refuse new writes.
+1. **Not handling connection errors:** In Node.js, if Redis goes down, `ioredis` will buffer commands in memory waiting for it to come back. If it's down for too long, your Node API will run out of memory (OOM crash). Always add `redis.on('error', ...)` handlers.
+2. **Using standard `redis.get()` for JSON in loops:** If you have an array of 50 User IDs, do not run `await redis.get()` inside a `for` loop. That is 50 network round trips. Use `await redis.mget(keysArray)` to fetch all 50 in a single network call.
+3. **Blocking the Event Loop:** Node.js is single-threaded, and Redis is single-threaded. If you pull a massive 100MB list from Redis into Node.js, V8 will freeze while parsing that data, blocking all other API requests. Paginate your Redis lists using `LRANGE`.
 
 ---
 
 ## SECTION 16 — Interview Preparation
 
-**Conceptual Questions:**
-
-* *Why is Redis single-threaded? Isn't multi-threading faster?*  
-  **Answer:** CPU is rarely the bottleneck for an in-memory DB; memory and network I/O are. Single-threading avoids the massive overhead of locks, synchronization, and context switching, making it overall faster and deterministic for RAM operations.
-
-* *What is the difference between RDB and AOF?*  
-  **Answer:** RDB takes point-in-time snapshots (good for backups, faster restarts, but you might lose the last few minutes of data on crash). AOF logs every single command (better durability, but files get huge and restarts are slower). Production often uses both combined.
-
 **System Design Question:**
 
-* *Design a real-time global leaderboard for a mobile game with 5 million players.*  
-  **Expected Answer:** Use a Redis Sorted Set (`ZSET`). Key: `leaderboard:global`. Member: `userId`. Score: `total_points`. Use `ZINCRBY` to update scores and `ZREVRANGE` to fetch the top 10 instantly.
+* *Company: Swiggy/Zomato*
+* *Question:* "We need a system to limit a user to applying exactly 1 promo code per minute to prevent brute-force attacks on our API. How would you design this?"
+* *Expected Answer:* I will use Redis. When the user requests `/apply-promo`, I will create a key `rate_limit:{userId}`. I will use the `INCR` command. If the result is 1, I use `EXPIRE key 60`. If the result is > 1, I block the request. Alternatively, I would write a Lua script to ensure `INCR` and `EXPIRE` are executed atomically to avoid race conditions.
 
 ---
 
 ## SECTION 17 — Revision Notes
 
-* **Redis** is an in-memory, single-threaded, data-structure server.
-* **Data Structures:** Strings, Lists, Sets, Sorted Sets, Hashes.
-* **Event Loop:** Uses I/O multiplexing to handle thousands of connections efficiently without thread locks.
-* **Persistence:** RDB (Snapshots) and AOF (Command Logs) ensure data isn't lost on restart.
-* **Rule of Thumb:** Never block the Redis thread with $O(N)$ operations like `KEYS *`.
+* **Streams:** Event logs for microservices.
+* **Bitmaps:** $O(1)$ space for boolean states (DAU tracking).
+* **HyperLogLog:** 12KB memory for estimating unique items.
+* **Pub/Sub:** Fire-and-forget real-time messaging.
+* **RDB vs AOF:** RDB is a snapshot (smaller size, data loss risk). AOF is a command log (larger size, no data loss).
+* **Lua Scripting:** Used to execute complex atomic logic inside the Redis server to avoid network latency and race conditions.
 
 ---
 
 ## SECTION 18 — Hands-On Assignment
 
-**Conceptual Exercise:**
+**Conceptual:**
+1. Why does HyperLogLog use a maximum of exactly 12KB of memory? (Research the math behind it briefly).
+2. If you are building a chat application in Express.js and deploy it to 3 different servers (scaling horizontally), explain why saving WebSocket connections locally in memory fails, and how Redis Pub/Sub solves this.
 
-1. Look up the `SCAN` command in Redis documentation. Write a brief explanation of how it differs from `KEYS *`.
-2. If you wanted to implement a "Rate Limiter" (e.g., max 5 API requests per minute per IP), which Redis data structure and commands would you intuitively use?
-
-**Design Exercise:**
-Draw a system flow of how an E-Commerce "Shopping Cart" could be implemented using a Redis Hash. What happens when a user adds an item? What happens when they log out?
+**Coding Exercise:**
+Write a Lua script as a string in Node.js that checks if a key exists; if it does, it deletes it and returns `1`; otherwise, it returns `0`. (Hint: use `redis.call('get', KEYS[1])`).
 
 ---
 
@@ -316,20 +346,18 @@ Draw a system flow of how an E-Commerce "Shopping Cart" could be implemented usi
 
 **Mini Project: Real-Time View Counter**
 
-* **Requirement:** Build a Spring Boot API that tracks how many times a specific article has been read.
+* **Requirement:** Build an Express route that tracks how many times a specific article has been read.
 * **Implementation:**  
-  * Expose `GET /article/{id}`.
-  * Inside the controller, use `RedisTemplate.opsForValue().increment("article:views:" + id)`.
+  * Expose `GET /api/article/:id`.
+  * Inside the controller, use `await redis.incr("article:views:" + id)`.
   * Return the new view count.
-
-* **Interview consideration:** Why is this better than running `UPDATE articles SET views = views + 1 WHERE id = ?` in PostgreSQL? (Hint: Row-level locks in relational DBs under high concurrency cause massive contention and deadlocks).
+* **Interview consideration:** Why is this better than running `Article.updateOne({ _id: id }, { $inc: { views: 1 } })` in MongoDB? (Hint: Row-level/document locks in MongoDB under high concurrency cause write contention).
 
 ---
 
 ## SECTION 20 — Active Learning
 
-To ensure these concepts are locked in before we move to Caching Patterns (Day 21), please answer the following questions based on today's lesson:
+To verify we are fully aligned on the complete Day 20 syllabus and the MERN stack context, please answer these two questions:
 
-1. Explain in your own words why Redis being single-threaded is actually a *feature* rather than a limitation.
-2. If you had to build a queue system where users process tasks in a First-In-First-Out (FIFO) order, which Redis Data Structure would you use, and why?
-3. Why is running the `KEYS *` command in a production environment considered a catastrophic mistake?
+1. **Scenario:** You are building an analytics dashboard in Node.js that needs to show how many *unique* visitors a blog post had. The blog gets 5 million views a day. Will you use a Redis `Set` or a Redis `HyperLogLog`, and exactly why?
+2. **Architecture:** In the context of Node.js and MongoDB, explain a scenario where you would intentionally configure your Redis Eviction Policy to `allkeys-lru` instead of the default `noeviction`. What happens to your Node API if you leave it as `noeviction` when RAM fills up?
