@@ -1,3 +1,0 @@
-# interview-notes
-
-Placeholder.

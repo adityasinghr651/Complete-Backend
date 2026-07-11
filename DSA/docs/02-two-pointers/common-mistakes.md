@@ -1,3 +1,0 @@
-# common-mistakes
-
-Placeholder.

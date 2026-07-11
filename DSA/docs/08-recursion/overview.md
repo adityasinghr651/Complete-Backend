@@ -1,3 +1,0 @@
-# overview
-
-Placeholder.
