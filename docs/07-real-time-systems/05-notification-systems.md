@@ -49,9 +49,9 @@ A dedicated Notification Service acts as a central hub. Instead of your `OrderSe
 ```mermaid
 graph TD
     subgraph Core Business Services
-        Auth[Auth API<br/>(User Signup)]
-        Order[Order API<br/>(Purchase)]
-        Billing[Billing API<br/>(Invoice)]
+        Auth["Auth API<br/>(User Signup)"]
+        Order["Order API<br/>(Purchase)"]
+        Billing["Billing API<br/>(Invoice)"]
     end
     
     subgraph Event Broker
@@ -59,16 +59,16 @@ graph TD
     end
     
     subgraph Dedicated Notification Service
-        Router[Notification Router<br/>(Checks Preferences)]
+        Router["Notification Router<br/>(Checks Preferences)"]
         WorkerE[Email Worker]
         WorkerP[Push Worker]
         WorkerS[SMS Worker]
     end
     
     subgraph External Providers
-        SendGrid[SendGrid (Email)]
-        Twilio[Twilio (SMS)]
-        FCM[Firebase (Push)]
+        SendGrid["SendGrid (Email)"]
+        Twilio["Twilio (SMS)"]
+        FCM["Firebase (Push)"]
     end
     
     Auth -->|Event| Kafka

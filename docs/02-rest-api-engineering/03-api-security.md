@@ -281,8 +281,8 @@ graph TD
 ```mermaid
 graph TD
     subgraph XSS Attack
-        A[Attacker submits profile name:<br/>&lt;script&gt;stealCookie()&lt;/script&gt;] --> B[Backend saves & serves name raw]
-        B --> C[Legit User's Browser renders:<br/>Hello &lt;script&gt;stealCookie()&lt;/script&gt;]
+        A["Attacker submits profile name:<br/>&lt;script&gt;stealCookie()&lt;/script&gt;"] --> B[Backend saves & serves name raw]
+        B --> C["Legit User's Browser renders:<br/>Hello &lt;script&gt;stealCookie()&lt;/script&gt;"]
         C --> D[Browser executes script:<br/>Steals cookie & sends to attacker]
     end
 

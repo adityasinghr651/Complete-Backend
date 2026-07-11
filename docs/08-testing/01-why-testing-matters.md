@@ -92,9 +92,9 @@ You shouldn't test everything the exact same way. We organize tests into a pyram
 
 ```mermaid
 graph TD
-    A[End-to-End Tests<br/>(Simulates Real User on UI)<br/>Slowest, Most Expensive] --> B
-    B[Integration / API Tests<br/>(Tests API + Database Together)<br/>Medium Speed] --> C
-    C[Unit Tests<br/>(Tests single functions in isolation)<br/>Fastest, Cheapest, Most Plentiful]
+    A["End-to-End Tests<br/>(Simulates Real User on UI)<br/>Slowest, Most Expensive"] --> B
+    B["Integration / API Tests<br/>(Tests API + Database Together)<br/>Medium Speed"] --> C
+    C["Unit Tests<br/>(Tests single functions in isolation)<br/>Fastest, Cheapest, Most Plentiful"]
     
     style A fill:#ffcdd2,stroke:#f44336
     style B fill:#fff9c4,stroke:#fbc02d

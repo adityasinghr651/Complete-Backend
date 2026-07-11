@@ -78,7 +78,7 @@ A **Unit Test** is a script that:
 ```mermaid
 graph TD
     subgraph Unit Test Environment
-        Test[Test Runner<br/>(Jest)] -->|Inputs: 2, 3| Func[Unit Under Test<br/>calculateTax()]
+        Test["Test Runner<br/>(Jest)"] -->|Inputs: 2, 3| Func[Unit Under Test<br/>calculateTax()]
         Func -->|Output: 5| Test
     end
     
