@@ -137,6 +137,9 @@ app.get('/health', (req, res) => {
 });
 ```
 
+> ✅ **[Principal Engineer Note]: Deep vs Shallow Healthchecks**
+> *The code above is a "Shallow" healthcheck. It only proves that the Node.js event loop isn't frozen. But what if the database connection drops? Node is still running, but every user request crashes! Senior engineers write "Deep" healthchecks. The `/health` route must execute a lightweight query (like `db.ping()`) to MongoDB and Redis. If those dependencies are unreachable, the route returns a `503 Service Unavailable`, forcing the Load Balancer to stop sending traffic to this broken instance.*
+
 ### 5.2 Structured Logging (Winston)
 
 Do not use `console.log()` in production. It is synchronous (blocks the thread) and cannot be easily searched. Use a logging library like `winston` to output JSON logs.
@@ -161,6 +164,9 @@ app.post('/transfer', (req, res) => {
 });
 ```
 These JSON logs can be sent to services like DataDog or AWS CloudWatch, where you can search: *"Show me all logs where amount > 10000"*.
+
+> ✅ **[Principal Engineer Note]: The Danger of PII/PCI Leaks in Logs**
+> *If a junior developer writes `logger.info("Incoming Request", req.body)` on a login or payment route, they just dumped raw passwords and credit card numbers into the company's Datadog account. This is a catastrophic compliance violation (GDPR/PCI-DSS). In production, you MUST configure Winston with a `format` step that automatically parses all log objects and redacts any keys named `password`, `token`, `credit_card`, or `ssn` before writing them to disk.*
 
 ***
 

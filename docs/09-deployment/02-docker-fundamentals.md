@@ -123,6 +123,9 @@ EXPOSE 3000
 CMD ["node", "server.js"]
 ```
 
+> ✅ **[Principal Engineer Note]: Multi-Stage Builds**
+> *The Dockerfile above is okay for basic apps, but terrible for TypeScript or frontend frameworks. If you need to compile TypeScript (`tsc`), you need the `typescript` compiler installed. But you DO NOT want to ship a 500MB compiler to production! Senior engineers use **Multi-Stage Builds**. You define a `FROM node AS builder` stage where you install `devDependencies` and compile the code. Then, you define a second `FROM node AS runner` stage where you ONLY copy over the compiled `.js` files from the builder stage. This keeps the production image tiny and secure.*
+
 ### 4.2 Building and Running the Image
 
 Open your terminal in the same directory as the Dockerfile.
@@ -169,6 +172,9 @@ By default, Docker runs processes as the `root` (admin) user. If a hacker breach
 USER node
 CMD ["node", "server.js"]
 ```
+
+> ✅ **[Principal Engineer Note]: The PID 1 Problem (Graceful Shutdown)**
+> *When you run `CMD ["node", "server.js"]`, Node.js becomes Process ID 1 (PID 1) in the container. Node.js is NOT designed to be an init system. If Kubernetes tries to scale down your app and sends a `SIGTERM` signal, Node.js will often ignore it, causing Kubernetes to forcefully kill (`SIGKILL`) your app after 30 seconds, dropping all active user requests! To fix this, production Dockerfiles use a lightweight init system like `dumb-init` or `tini` to wrap the Node process: `CMD ["dumb-init", "node", "server.js"]`.*
 
 ***
 

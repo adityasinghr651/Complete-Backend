@@ -115,6 +115,9 @@ What happens inside your backend architecture when you implement a cache?
 **Time Complexity:**
 Finding a key in a well-designed cache like Redis operates at $O(1)$ time complexity (Hash Table lookup). Searching a MongoDB collection relies on a B-Tree Index, which operates at $O(\log n)$ time complexity, plus the massive penalty of Disk I/O.
 
+> ✅ **[Principal Engineer Note]: The Thundering Herd (Cache Stampede)**
+> *The Cache-Aside pattern is standard, but what happens when a viral tweet's cache key expires (TTL hits 0)? In the exact millisecond the key vanishes, 10,000 concurrent requests will experience a Cache Miss simultaneously. All 10,000 requests will immediately query MongoDB, crashing it instantly before the first request can even write the new data back to Redis. This is the **Thundering Herd** problem. At scale, we solve this using "Mutex Locks" in Redis or "Probabilistic Early Expiration" (XFetch) to ensure only ONE request queries MongoDB while the others wait.*
+
 ---
 
 ## SECTION 8 — Visual Diagrams
@@ -227,6 +230,9 @@ app.get('/api/products/:id', async (req, res) => {
 * Notice how the Node.js application coordinates between Redis and MongoDB. This is the **Cache Aside** pattern.
 * We use `JSON.parse` and `JSON.stringify`. Redis stores text (strings), so we must serialize our JavaScript objects to store them, and deserialize them when reading.
 * **Crucial:** We attached an Expiration time (TTL - 3600s). If the restaurant owner changes the price in MongoDB, we don't want the cache to hold the old price forever.
+
+> ✅ **[Principal Engineer Note]: The Serialization Tax**
+> *`JSON.stringify` and `JSON.parse` are synchronous and block the Node.js Event Loop. If you are caching massive objects (e.g. a 5MB array of user stats), the CPU time spent stringifying/parsing can actually make your API SLOWER than just querying MongoDB. In extreme high-performance environments (Discord, Uber), engineers stop using JSON and switch to binary formats like **MessagePack** or **Protocol Buffers**, which serialize 10x faster and take up 50% less RAM in Redis.*
 
 ---
 

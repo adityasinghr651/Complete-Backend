@@ -136,6 +136,9 @@ app.post('/api/users', (req, res) => {
 module.exports = app; 
 ```
 
+> ✅ **[Principal Engineer Note]: The Database Connection Trap**
+> *In many tutorials, developers put `mongoose.connect()` directly inside `app.js`. If you do this, importing `app.js` in your tests will immediately trigger a connection to your dev/prod database! To solve this, you must separate your server. `app.js` should ONLY define middleware and routes (no `app.listen`, no DB connections). A separate `server.js` file imports `app.js`, connects to MongoDB, and calls `app.listen()`. This allows your API tests to safely import `app.js` and inject a mocked or in-memory database.*
+
 ### 4.3 The Tests (`api.test.js`)
 
 ```javascript
@@ -221,6 +224,9 @@ const postRes = await request(app).post('/api/users').send({...});
 const newId = postRes.body.id; // Capture the dynamically generated ID
 const getRes = await request(app).get(`/api/users/${newId}`); // Use it
 ```
+
+> ✅ **[Principal Engineer Note]: Testing Concurrency and Rate Limits**
+> *Junior engineers test logic sequentially. Senior engineers test logic concurrently. A critical API test you must write is the "Race Condition Test". Use `Promise.all()` to fire 5 identical checkout requests to `/api/checkout` at the exact same millisecond. Your API tests should assert that exactly ONE request succeeds (200 OK) and the other four are rejected (e.g., 409 Conflict or 429 Too Many Requests). This guarantees your database transaction locks are actually working.*
 
 ***
 

@@ -121,6 +121,9 @@ graph TD
     style D fill:#fce4ec,stroke:#e91e63
 ```
 
+> ✅ **[Principal Engineer Note]: The Reality of Eventual Consistency**
+> *When you adopt EDA, you are abandoning Strict Consistency (ACID). If a user completes an order, the Order API returns 200 OK instantly. However, the Inventory API might take 200ms to process the `order.created` event. For those 200 milliseconds, the system is technically inconsistent! The Order exists, but the stock hasn't decreased yet. This is called **Eventual Consistency**. You must design frontends to hide this delay (e.g. optimistic UI updates) and train stakeholders to accept that data is temporarily out of sync.*
+
 ***
 
 ## SECTION 3: VISUAL DIAGRAMS
@@ -262,6 +265,9 @@ eventBus.subscribe('user.signup', async (event) => {
   }
 });
 ```
+
+> ✅ **[Principal Engineer Note]: The Dual-Write Problem (Outbox Pattern)**
+> *Look at Section 4.1. The API saves the user to MongoDB, and THEN publishes to the Event Bus. What if the server crashes exactly between step 1 and step 2? The user exists in the DB, but the event is NEVER fired. The Welcome Email is never sent! This is the "Dual-Write Problem". At scale, we solve this using the **Transactional Outbox Pattern**: You save the user AND the event into MongoDB in the same ACID transaction. A separate process (like Debezium) reads the MongoDB replication log and securely forwards the event to Kafka.*
 
 ***
 

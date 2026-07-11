@@ -124,6 +124,9 @@ volumes:
   mongo-data:
 ```
 
+> ✅ **[Principal Engineer Note]: Docker Compose Profiles**
+> *In a microservice architecture, you might have 15 different APIs, 3 databases, and 2 frontends in a single `docker-compose.yml`. Running `docker-compose up` would instantly fry a junior developer's 8GB laptop. Principal Engineers use **Profiles**. By adding `profiles: ["frontend"]` to the React container and `profiles: ["billing"]` to the billing API, developers can run `docker-compose --profile frontend up` to only boot up the exact subset of the architecture they are currently working on.*
+
 ### 4.2 The Magic of Compose Networking (DNS)
 
 Look at this line in the YAML:
@@ -172,6 +175,9 @@ const connectWithRetry = () => {
   });
 };
 ```
+
+> ✅ **[Principal Engineer Note]: The Infrastructure Fix (Healthchecks)**
+> *While application-level retry logic is great, the true infrastructure fix is using Docker Compose **Healthchecks**. You can tell Compose exactly how to ping the database (e.g., running `mongosh --eval "db.adminCommand('ping')"`). Then, update your API's `depends_on` to wait for `condition: service_healthy`. Docker Compose will hold the API container in a pending state and absolutely will not start it until MongoDB returns a successful ping!*
 
 ### Mistake 2: Missing Volumes for Databases
 If you spin up a Postgres or Mongo container without defining a `volume`, the data is saved inside the container's ephemeral layer. When you type `docker-compose down`, the container is destroyed, and **all your data is permanently deleted**.

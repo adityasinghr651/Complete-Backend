@@ -69,6 +69,9 @@ A **Unit Test** is a script that:
 - HTTP routing / Controllers (these require API tests).
 - 3rd Party APIs (e.g., Twilio, Stripe).
 
+> ✅ **[Principal Engineer Note]: Test Behavior, Not Implementation**
+> *A junior engineer tests HOW a function works. A senior engineer tests WHAT a function returns. If you have a function `sortUsers(users)`, do not write a test that checks if it called the `Array.prototype.sort()` method internally using a spy. Just test that the returned array is actually in alphabetical order! If you test the implementation, your test will break the second you refactor the code (e.g., switching to a custom QuickSort), even if the output is still perfectly correct. Brittle tests slow down teams.*
+
 ***
 
 ## SECTION 3: VISUAL DIAGRAMS
@@ -208,6 +211,9 @@ test('Math.max works', () => {
   expect(Math.max(1, 5)).toBe(5); 
 });
 ```
+
+> ✅ **[Principal Engineer Note]: The Over-Mocking Trap**
+> *In modern Node.js testing, developers often go crazy with mocks (mocking every single import in a file). If a unit function calls a simple local helper function `formatDate()`, DO NOT mock the helper! Let it run. If you mock the helper to always return "Jan 1", and someone breaks the real `formatDate()` logic, your unit test will still pass because it's using the fake mock. This creates a false sense of security. Only mock external boundaries (Network, Disk, Time).*
 
 ***
 

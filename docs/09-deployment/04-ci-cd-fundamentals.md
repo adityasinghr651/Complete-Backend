@@ -127,6 +127,9 @@ jobs:
       run: npm test
       # If this fails, GitHub instantly halts the pipeline. The next job will NEVER run.
 
+> ✅ **[Principal Engineer Note]: Caching in CI**
+> *In the pipeline above, `npm ci` downloads 500MB of dependencies from the internet on every single push. This can add 2-3 minutes to your pipeline. In enterprise environments, speed is money. Senior engineers use GitHub Actions Caching (`actions/cache@v3`) to cache the `~/.npm` directory between runs. If the `package-lock.json` hasn't changed since the last push, the cache is restored in 2 seconds, entirely skipping the network download!*
+
   # --- JOB 2: CONTINUOUS DEPLOYMENT ---
   deploy-to-production:
     needs: build-and-test # CRITICAL: This job waits for the CI job to succeed!
@@ -177,6 +180,9 @@ If a test passes 90% of the time but fails 10% of the time (usually due to netwo
 ### Mistake 3: Deploying on Fridays
 CD is powerful, but it isn't magical. If a bug slips past your tests and deploys at 5:00 PM on a Friday, your engineering team will spend their entire weekend fixing the production database.
 **Solution**: Implement "Deploy Freezes" on Friday afternoons.
+
+> ✅ **[Principal Engineer Note]: The Database Migration Trap**
+> *CD works flawlessly for stateless code. But what if your PR renames a database column from `userId` to `customer_id`? If the CD pipeline runs the database migration first, the currently running production servers will instantly crash because they are still querying `userId`! To solve this, you must use the **Expand and Contract Pattern**: 1. Deploy code that writes to BOTH columns. 2. Run a script to copy old data to the new column. 3. Deploy code that only reads the new column. 4. Finally, drop the old column.*
 
 ***
 

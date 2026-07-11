@@ -99,7 +99,10 @@ We will use `mongodb-memory-server` which spins up a temporary, totally isolated
 npm install --save-dev jest mongodb-memory-server mongoose
 ```
 
-**The Test Setup File (`db.test.js`)**:
+> ✅ **[Principal Engineer Note]: Memory Servers vs Testcontainers**
+> *`mongodb-memory-server` is a fantastic Node.js-specific tool. However, what if you use PostgreSQL? Or Redis? Or Kafka? In modern enterprise architectures, the gold standard is **Testcontainers**. Testcontainers is a library that programmatically spins up real Docker containers (e.g., `postgres:15-alpine`) from inside your test setup file, runs your tests against them, and destroys them. This guarantees 100% parity with your production environment, avoiding edge cases where an in-memory mock database behaves slightly differently than the real thing.*
+
+***The Test Setup File (`db.test.js`)**:
 ```javascript
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
@@ -174,6 +177,9 @@ test('counts users', async () => {
 });
 ```
 **Solution**: Always drop collections or rollback transactions in the `afterEach` hook. **Tests must be idempotent** (they can run in any order, 100 times, and always pass).
+
+> ✅ **[Principal Engineer Note]: The Speed of Transactions vs Truncation**
+> *Using `deleteMany()` (MongoDB) or `TRUNCATE` (SQL) in `afterEach` works, but writing to disk and deleting from disk is slow. If you have 500 integration tests, doing this 500 times adds minutes to your CI pipeline. The senior pattern is **Transaction Rollbacks**. In SQL databases, you run `BEGIN TRANSACTION` in `beforeEach()`, run the test, and then run `ROLLBACK` in `afterEach()`. The data is never actually committed to disk, meaning cleanup is instantaneous!*
 
 ### Mistake 2: Pointing Tests at Development or Production Databases
 If you accidentally run `jest` and your connection string is `mongodb://localhost/myapp_prod`, your `afterEach` hook will permanently delete your entire production database.

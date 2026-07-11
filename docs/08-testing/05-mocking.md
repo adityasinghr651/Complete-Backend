@@ -69,6 +69,9 @@ A **Mock** is a fake object created specifically for testing that:
 2. **To Run Offline & Fast**: Unit tests must run in milliseconds. If your test makes a network request to AWS, it takes hundreds of milliseconds and fails if you are coding on an airplane without WiFi.
 3. **To Force Rare Errors**: How do you test what your app does if the Database connection crashes mid-query? You can't easily force a real DB to do that reliably. You *can* easily tell a Mock DB to throw a `ConnectionRefusedError`.
 
+> ✅ **[Principal Engineer Note]: The Danger of Mock Drift**
+> *Mocks are dangerous because they are liars. If you mock the Stripe API to return `{ success: true }`, your tests pass. But what if Stripe updates their API tomorrow and starts returning `{ status: 'ok' }` instead? Your mock still returns `{ success: true }`. Your tests still pass. But Production crashes immediately! This is called **Mock Drift**. To prevent this, Principal Engineers enforce TypeScript (so the mock must match the official SDK types) or use "Contract Testing" (where the mock is generated directly from the provider's OpenAPI spec).*
+
 ***
 
 ## SECTION 3: VISUAL DIAGRAMS
@@ -221,6 +224,9 @@ beforeEach(() => {
   jest.clearAllMocks(); // Resets the "toHaveBeenCalledTimes" counters
 });
 ```
+
+> ✅ **[Principal Engineer Note]: Mocking Modules vs Mocking Network**
+> *Using `jest.mock('axios')` is common but fragile. It intercepts the `require` statement. If you switch from Axios to `fetch`, your tests break even if the HTTP logic is correct. In production, we prefer tools like **MSW (Mock Service Worker)** or **Nock**. These tools run at the OS/Network level, intercepting the actual outgoing HTTP request to `https://api.stripe.com` and returning fake JSON. This allows your code to execute the real HTTP client library normally, providing much higher confidence.*
 
 ***
 

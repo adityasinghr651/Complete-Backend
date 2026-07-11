@@ -85,6 +85,9 @@ Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
 ```
 3. The HTTP connection is now "upgraded". It is no longer HTTP; it is a raw WebSocket tunnel.
 
+> ✅ **[Principal Engineer Note]: Load Balancers and The 60-Second Kill**
+> *In production, your Node.js app sits behind a Load Balancer (AWS ALB, Nginx). By default, load balancers expect HTTP requests to finish quickly. If they don't explicitly support or aren't configured for the `101 Switching Protocols` WebSocket upgrade, they will treat your WebSocket like a stuck HTTP request and forcefully sever the connection after their 60-second Idle Timeout. You MUST explicitly configure your Load Balancer/Ingress to allow WebSockets!*
+
 ***
 
 ## SECTION 3: VISUAL DIAGRAMS
@@ -253,6 +256,9 @@ If you run two Node.js servers (Server A and Server B) behind a load balancer:
 ### Mistake 3: Sending Heavy Payloads
 WebSockets are designed for fast, lightweight JSON or Binary frames. Do not send Base64 encoded images or 10MB JSON blobs over a WebSocket. It will clog the single TCP tunnel.
 **Fix**: Upload heavy files via standard HTTP POST routes, and only send the *URL* of the uploaded file over the WebSocket.
+
+> ✅ **[Principal Engineer Note]: The Authentication Trap**
+> *The standard browser `new WebSocket('ws://...')` API does NOT allow you to append custom HTTP headers like `Authorization: Bearer <token>`. This trips up many developers trying to secure their sockets. You have two production solutions: 1. Pass the token securely in the URL query string (`?token=xyz`) over WSS (TLS encrypts the URL path). 2. Establish the connection unauthenticated, and require the client to immediately send an `{ type: 'AUTH', token: 'xyz' }` frame. If they don't send it within 3 seconds, terminate the socket.*
 
 ***
 

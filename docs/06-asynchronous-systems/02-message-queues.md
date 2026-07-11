@@ -215,6 +215,9 @@ Apache Kafka is a **distributed event streaming platform** that:
 | **Routing Flexibility**| Complex (Direct, Fanout, Topic, Headers) | Simple (Topics and Partitions) |
 | **Best For** | Background Jobs, Task Queues | Event Sourcing, Activity Streams |
 
+> ✅ **[Principal Engineer Note]: The Smart/Dumb Architecture Tradeoff**
+> *The fundamental difference between RabbitMQ and Kafka is where the "Brain" lives. RabbitMQ is a "Smart Broker". It keeps track of exactly who consumed what, in RAM. This makes tracking easy but limits throughput because the broker is doing heavy bookkeeping. Kafka is a "Dumb Broker". It just blindly appends bytes to a text file on a hard drive as fast as possible. The Consumer is the "Smart" one; it must remember its own `offset` (which line of the file it read last). This shifted complexity allows Kafka to achieve millions of messages per second.*
+
 ***
 
 ### 4.4 When to Use Which?
@@ -423,6 +426,9 @@ channel.consume('queue', async (msg) => {
   }
 });
 ```
+
+> ✅ **[Principal Engineer Note]: The Poison Pill Problem**
+> *If a Producer accidentally sends a message with malformed JSON (`{ "user": "raj", broken_json `), the Consumer's `JSON.parse(msg)` will crash. If you just `nack(msg)` and put it back in the queue, another consumer will pick it up, crash, and put it back. This creates an infinite loop that brings down your entire worker cluster in seconds. This is called a **Poison Pill**. You MUST configure a **Dead Letter Queue (DLQ)**. Tell RabbitMQ: "If this message fails 3 times, move it to the DLQ and stop retrying." Engineers can then manually inspect the DLQ later.*
 
 ***
 

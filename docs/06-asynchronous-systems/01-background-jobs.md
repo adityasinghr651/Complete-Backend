@@ -339,6 +339,9 @@ app.post('/purchase', async (req, res) => {
 - You must hold the user's connection to confirm their credit card works (Sync).
 - Once the money is secured, updating the inventory and sending the receipt can happen immediately after in the background.
 
+> ✅ **[Principal Engineer Note]: Idempotency in Background Jobs**
+> *In production, background jobs fail. That's why we have retries. But what if a job charges a credit card, and the network drops exactly as it tries to record the success in the database? The job fails, BullMQ retries it, and the user gets charged TWICE. To prevent this, every background job MUST be **Idempotent**. This means passing a unique `Idempotency-Key` (like the `orderId`) to Stripe, so if the job retries, Stripe says "I already processed this key" and safely ignores the duplicate request.*
+
 ***
 
 ## SECTION 5: MERN STACK IMPLEMENTATION
@@ -487,6 +490,9 @@ worker.on('failed', (job, err) => {
   alertAdmin(`Job failed heavily: ${err.message}`);
 });
 ```
+
+> ✅ **[Principal Engineer Note]: The Zombie Worker Problem (Stalled Jobs)**
+> *What happens if your worker pulls a job from Redis, starts executing, and then gets stuck in an infinite `while` loop, or is waiting for a third-party API that never times out? The job never completes and never fails. It becomes a Zombie. BullMQ has a built-in mechanism for this: it expects the worker to periodically renew a "lock" on the job. If the lock expires, BullMQ considers the job "Stalled" and automatically gives it to another healthy worker. Always ensure your external API calls have strict timeouts (e.g., 5 seconds) to prevent Zombie workers!*
 
 ***
 

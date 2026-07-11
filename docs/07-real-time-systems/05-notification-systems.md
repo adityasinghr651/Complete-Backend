@@ -192,6 +192,9 @@ emailWorker.on('failed', (job, err) => {
 });
 ```
 
+> ✅ **[Principal Engineer Note]: The Thundering Herd of Retries**
+> *If SendGrid's API goes down for 5 minutes, 10,000 email jobs will fail. If you configure BullMQ to just "retry 5 times", all 10,000 jobs will instantly retry the millisecond SendGrid comes back online, effectively DDOSing SendGrid and getting your IP permanently banned. You MUST configure **Exponential Backoff with Jitter** (e.g., wait 2s, then 4s, then 8s, plus a random math jitter) to spread the retry load out safely.*
+
 ***
 
 ## SECTION 5: COMMON MISTAKES & ADVANCED CHALLENGES
@@ -220,6 +223,9 @@ Network glitches happen. If a worker sends an email, but crashes right before ac
 // BullMQ ensures jobs with the same ID are never processed twice
 await emailQueue.add('order-receipt', data, { jobId: `receipt-${order._id}` });
 ```
+
+> ✅ **[Principal Engineer Note]: Idempotency at the Provider Level**
+> *Setting a `jobId` in BullMQ only prevents BullMQ from duplicating the job internally. But what if the worker successfully calls `sendGrid.send()`, SendGrid fires the email, but the network drops BEFORE SendGrid's HTTP 200 OK reaches your worker? The worker thinks it failed, and retries. BullMQ allows the retry because the job wasn't completed! The user gets two emails. To solve this, you must pass a unique `Idempotency-Key` header IN the HTTP request to SendGrid/Stripe/FCM so the provider knows to ignore the duplicate.*
 
 ***
 

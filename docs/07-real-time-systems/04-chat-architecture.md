@@ -80,6 +80,9 @@ graph TD
     style Redis fill:#ffebee,stroke:#f44336
 ```
 
+> ✅ **[Principal Engineer Note]: The Fan-Out Problem (Group Chats)**
+> *In a 1-to-1 chat, sending a message is $O(1)$. But imagine a Discord server with 50,000 online members. When you send a message, the Node.js server must serialize the JSON and loop over 50,000 sockets to push the frame. Doing this in a single `forEach` loop blocks the V8 Event Loop for several milliseconds, freezing the entire server! At scale, large Group Chat Fan-Outs are offloaded to background workers (or specialized languages like Erlang/Go) rather than running directly on the main Node.js thread.*
+
 ***
 
 ## SECTION 4: PRODUCTION MERN EXAMPLE (Single Server)
@@ -260,6 +263,9 @@ If a user goes through a tunnel, their 4G drops for 10 seconds. The WebSocket di
 ### Mistake 3: Storing WebSocket Objects in Redis
 You cannot store a WebSocket connection object in a database or Redis. A socket represents a physical TCP port bound to a specific CPU/RAM instance. 
 **Solution**: This is why we use Pub/Sub. Redis doesn't hold the socket; it just broadcasts a JSON string to all servers. The server that *does* have the socket in its local RAM pushes it to the user.
+
+> ✅ **[Principal Engineer Note]: The Disconnect Storm (Thundering Herd)**
+> *If your Node.js server crashes, all 10,000 connected clients will trigger their `socket.onclose` event and immediately try to reconnect. 10,000 simultaneous TCP handshakes will instantly DDoS your replacement server, crashing it too. You MUST implement **Exponential Backoff with Jitter** on the frontend. This means the client waits `(Math.random() * 2000) + 1000` ms before reconnecting, spreading the 10,000 reconnections over several seconds.*
 
 ***
 

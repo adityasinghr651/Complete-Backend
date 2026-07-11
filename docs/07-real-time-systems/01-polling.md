@@ -218,6 +218,9 @@ app.get('/api/global-announcement', async (req, res) => {
 });
 ```
 
+> ✅ **[Principal Engineer Note]: HTTP ETags and `304 Not Modified`**
+> *Even if you hit Redis, you are still sending the full JSON payload over the network every 5 seconds. To save massive amounts of egress bandwidth costs, use **ETags**. The server hashes the response (e.g., `W/"1a2b3c"`) and sends it in the `ETag` header. Next time the client polls, it sends `If-None-Match: W/"1a2b3c"`. The server checks the hash, sees it hasn't changed, and returns a completely empty `304 Not Modified` response. Express.js actually does this automatically if you use `res.json()`, but you must ensure it isn't disabled!*
+
 ***
 
 ## SECTION 6: COMMON MISTAKES
@@ -256,6 +259,9 @@ async function safePoll() {
 }
 safePoll();
 ```
+
+> ✅ **[Principal Engineer Note]: The Mobile Battery Killer**
+> *Never use Short Polling if your client is a mobile app. Mobile network radios (4G/5G) have "tail times"—they stay fully powered on for 10-15 seconds after any network activity. If you poll every 5 seconds, the radio NEVER goes to sleep. You will drain a user's battery in hours and get your app uninstalled. Always use Push Notifications (APNs/FCM) or WebSockets for mobile!*
 
 ***
 

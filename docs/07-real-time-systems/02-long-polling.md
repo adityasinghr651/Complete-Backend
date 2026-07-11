@@ -145,6 +145,9 @@ app.post('/api/messages', express.json(), (req, res) => {
 app.listen(3000, () => console.log('Long Polling server running'));
 ```
 
+> ✅ **[Principal Engineer Note]: Ephemeral Port Exhaustion**
+> *Holding 50,000 HTTP connections open on a single Node.js server sounds great because V8 uses little RAM. However, Linux has a hard limit of ~65,000 TCP ports available per IP address. If 65,000 users long-poll your server, the OS runs out of ports, and the 65,001st user gets a "Connection Refused" error, even if CPU is at 2%. In production, you must scale horizontally behind a load balancer to distribute the TCP connections!*
+
 ### 3.2 Frontend: The Recursive Re-connection
 
 **React / Vanilla JavaScript**:
@@ -190,6 +193,9 @@ startLongPolling();
 **Cons of Long Polling:**
 - **High Header Overhead**: Every single message requires establishing a full HTTP request, sending HTTP headers, parsing them, etc.
 - **Unidirectional**: The server can push to the client, but the client must open a *separate* standard HTTP POST request to send data back to the server.
+
+> ✅ **[Principal Engineer Note]: The Reconnect Blind Spot**
+> *Look at the sequence diagram again. When a Long Poll times out and returns `204`, the client takes maybe 50-100 milliseconds to re-establish the next Long Poll. What happens if a chat message arrives at the server during those 50 milliseconds? The server tries to emit it, but the client isn't connected! The message is lost forever. To fix this in production, the client must send a `?last_message_id=987` query param on every reconnect. The server must check a Redis queue for any messages > 987 and return them immediately before parking the connection.*
 
 ***
 

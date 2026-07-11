@@ -84,6 +84,9 @@ You might think: *"Writing tests takes twice as long! I could just build feature
    - Finding a bug while typing code: Costs $1 (takes 5 seconds).
    - Finding a bug in Production: Costs $10,000 (takes engineering time, customer support time, and lost user trust).
 
+> ✅ **[Principal Engineer Note]: Testing as Architectural Pressure**
+> *Junior engineers think testing is just about finding bugs. Senior engineers know that testing is a design tool. If you write a function and find it is incredibly difficult to test (because it reaches out to the database globally or relies on hardcoded environment variables), it means your architecture is bad. Writing tests forces you to decouple your code, use Dependency Injection, and write pure functions. The tests literally exert "pressure" on your architecture to be better.*
+
 ***
 
 ### 2.3 The Testing Pyramid
@@ -199,6 +202,9 @@ test('handles negative prices', () => {
 ### Mistake 2: Writing Tests *After* the Code is in Production
 Many developers push code to production, and then write tests a week later to satisfy their manager. By then, the bugs are already live.
 **Solution**: Use **Test-Driven Development (TDD)**, or simply mandate that Pull Requests cannot be merged unless tests are included and passing.
+
+> ✅ **[Principal Engineer Note]: The 100% Coverage Fallacy**
+> *In enterprise companies, management often sets a hard rule: "You must have 100% test coverage." This is a massive mistake. To reach 100%, developers start writing useless, brittle tests just to satisfy the metric (e.g., testing that `getAge()` returns `this.age`). The true goal of testing is **Confidence**, not a metric. Focus your energy on testing complex business logic (e.g., shopping cart tax calculations) rather than basic boilerplate code.*
 
 ***
 

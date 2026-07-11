@@ -111,6 +111,9 @@ Since Redis is in RAM, what happens when the AWS EC2 instance restarts? To preve
 * **Tradeoff:** No data loss, but the file size grows massively, and server restart is slower.
 * *Production Standard:* Use both. RDB for fast restarts, AOF for data safety.
 
+> ✅ **[Principal Engineer Note]: The Fork() Memory Spike (OOM Crashes)**
+> *When Redis creates an RDB snapshot, it uses the Linux `fork()` command, which uses "Copy-on-Write" memory. If your Redis is taking up 4GB of RAM out of an 8GB server, and you get a massive spike in write traffic while the snapshot is saving, the OS copies the modified memory pages. Suddenly, your Redis instance doubles its memory footprint to 8GB, hits the ceiling, and the Linux OOM Killer terminates Redis entirely. Never run Redis above 50-60% of your total system RAM!*
+
 ### 2. Memory Management & Eviction Policies
 
 When your Node app writes 2.1GB into a 2GB Redis instance, Redis hits `maxmemory`. You must configure an **Eviction Policy**:
@@ -307,6 +310,9 @@ Trace an `incrementUserAge` request via a Redis Hash:
 1. **Not handling connection errors:** In Node.js, if Redis goes down, `ioredis` will buffer commands in memory waiting for it to come back. If it's down for too long, your Node API will run out of memory (OOM crash). Always add `redis.on('error', ...)` handlers.
 2. **Using standard `redis.get()` for JSON in loops:** If you have an array of 50 User IDs, do not run `await redis.get()` inside a `for` loop. That is 50 network round trips. Use `await redis.mget(keysArray)` to fetch all 50 in a single network call.
 3. **Blocking the Event Loop:** Node.js is single-threaded, and Redis is single-threaded. If you pull a massive 100MB list from Redis into Node.js, V8 will freeze while parsing that data, blocking all other API requests. Paginate your Redis lists using `LRANGE`.
+
+> ✅ **[Principal Engineer Note]: Running KEYS * in Production**
+> *The single deadliest command in Redis is `KEYS *`. Because Redis is single-threaded, if you have 10 million keys and run `KEYS *` (or even `KEYS user:*`), Redis will freeze for several seconds to scan memory. Every other API request across your entire cluster will queue up and time out, bringing down the whole architecture instantly. NEVER use `KEYS` in production. Always use the `SCAN` command, which iterates through keys incrementally via a cursor without blocking the thread.*
 
 ---
 
