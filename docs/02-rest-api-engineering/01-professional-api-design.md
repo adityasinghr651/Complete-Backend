@@ -80,6 +80,9 @@ Sometimes an operation doesn't cleanly map to CRUD. For instance, "Activating" a
 - `POST /users/{id}/activate` (Preferred)
 - `POST /orders/{id}/refund` (Preferred)
 
+> ✅ **[Principal Engineer Note]: The REST Purism Trap**
+> *A massive mistake mid-level engineers make is trying to force complex state-machine transitions into pure CRUD REST. If refunding an order involves 14 different side-effects (emailing the user, hitting Stripe, updating inventory), do NOT try to do `PATCH /orders/{id} { "status": "refunded" }`. Use an RPC-style action endpoint like `POST /orders/{id}/refund`. Pragmatism > Purism in production!*
+
 #### 2.2.3 Use Hierarchical Paths for Relationships
 
 For related resources:
@@ -124,6 +127,9 @@ GET /orders?page=1&limit=20
 - **Cons:** 
   - **Page Skipping:** If an item is added to page 1 while the user is viewing page 1, when they click page 2, the last item of page 1 shifts to page 2 (they see a duplicate).
   - **Deep Pagination Performance:** `OFFSET 100000 LIMIT 20` requires the DB to scan and discard 100,000 rows. It becomes incredibly slow.
+
+> ✅ **[Principal Engineer Note]: Why OFFSET Kills Databases**
+> *In a SQL database (like Postgres), `OFFSET 1,000,000` forces the database engine to perform a **Sequential Scan**. It literally reads one million rows from the hard drive, counts them, throws them in the trash, and then reads the next 20 to return to you. This consumes massive I/O and CPU, leading to cascading outages. Never allow users to input arbitrary offsets!*
 
 #### 2.3.2 Cursor-Based Pagination
 Instead of an offset, the client sends a `cursor` (a pointer to the last item they saw).
@@ -236,6 +242,9 @@ Accept: application/vnd.mycompany.v2+json
 - **Additive changes are safe:** Adding a new field to a JSON response won't break clients.
 - **Destructive changes are breaking:** Removing a field, renaming a field, or changing a data type (string to int).
 - **Deprecation Policy:** Add a `Sunset` HTTP header to responses to warn developers that a v1 endpoint will be deactivated on a specific date.
+
+> ✅ **[Principal Engineer Note]: The Move to GraphQL**
+> *Because REST versioning and payload sizes (Over-fetching) become incredibly painful at massive scale, companies like Meta invented **GraphQL**. In GraphQL, there is typically only one endpoint (`POST /graphql`). Clients query exactly the fields they want. If you need to deprecate a field, you simply mark it `@deprecated` in the schema and track exactly which clients are still requesting it before safely deleting it.*
 
 ***
 

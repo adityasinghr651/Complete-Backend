@@ -56,6 +56,9 @@ A professional mapping of error HTTP status codes:
 - **422 Unprocessable Entity**: Request body is structurally correct but **fails business/validation rules** (e.g., invalid email, password too short).
 - **429 Too Many Requests**: Rate limit exceeded.
 
+> ✅ **[Principal Engineer Note]: The 429 Retry-After Header**
+> *In production, returning a 429 without telling the client when to retry is a cardinal sin. If you just return 429, thousands of clients will immediately retry in a tight loop, acting as a DDoS attack against your own servers. Always include the `Retry-After: 30` header (retry in 30 seconds) and `X-RateLimit-Reset` so well-behaved clients back off gracefully.*
+
 **Server Errors:**
 - **500 Internal Server Error**: Unknown/unhandled exception.
 - **502 Bad Gateway**: Reverse proxy / gateway got an invalid response from upstream.
@@ -226,6 +229,9 @@ graph LR
 - For unknown/unexpected exceptions:
   - Return **500** with a generic message (do **not** leak the stack trace to the client).
   - Log full details internally.
+
+> ✅ **[Principal Engineer Note]: Structured Logging & Distributed Tracing**
+> *When your global error handler logs an exception, NEVER log simple text like `console.log('Error:', err.message)`. In microservices, text logs are useless. You must log **Structured JSON** containing the `requestId`, `userId`, `route`, and the full `stack`. Tools like Datadog, Splunk, or ElasticSearch parse this JSON automatically, allowing you to instantly correlate an error on the API Gateway with a failure deep inside the Database service using Distributed Tracing.*
 
 ***
 

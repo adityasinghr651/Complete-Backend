@@ -133,6 +133,9 @@ if (!allowedSort.includes(sortBy)) {
 const sql = `SELECT * FROM users ORDER BY ${sortBy}`; // Safe because of whitelist
 ```
 
+> ✅ **[Principal Engineer Note]: Second-Order SQL Injection**
+> *Junior engineers often parameterize the `INSERT` query when a user signs up, thinking they are safe. But if an attacker sets their username to `' OR 1=1; --`, it is safely stored in the database. Later, an internal admin dashboard runs a poorly written query like `SELECT * FROM logs WHERE username = '${user.username}'`. The payload is pulled from the DB and executed, dropping your tables. This is called Second-Order SQL Injection. Parameterize ALL queries, everywhere, without exception.*
+
 ***
 
 ## SECTION 4: XSS (Cross-Site Scripting)
@@ -232,6 +235,9 @@ Without rate limiting:
 1. **Fixed Window**: 100 requests per minute. Resets at the start of every clock minute. Simple, but vulnerable to edge spikes.
 2. **Sliding Window**: Evaluates request count smoothly over the trailing 60 seconds.
 3. **Token Bucket**: A bucket holds N tokens. Each request consumes a token. Tokens refill at a steady rate. Used by most professional APIs.
+
+> ✅ **[Principal Engineer Note]: Distributed Rate Limiting at Scale**
+> *At massive scale, storing rate limit counters in a single Redis instance creates a bottleneck. If you handle 50,000 requests per second, you can't run `INCR` in Redis 50,000 times a second on a single thread. Production architectures push rate limiting to the Edge using API Gateways (like Kong, Envoy, or AWS API Gateway) which batch counters or use local memory combined with async Redis syncing to reduce network hops.*
 
 ### 6.3 Implementation Example
 
