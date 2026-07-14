@@ -440,7 +440,66 @@ class Solution {
 #### Problem Statement Link
 [Official Link](https://www.codechef.com/practice/course/two-pointers/POINTERF/problems/PREP68)
 
-*(Detailed solution and template placeholder)*
+#### Problem Statement Overview
+Given an array of $N$ integers and an integer $B$, find whether there exists a pair of elements in the array whose difference is exactly $B$.
+
+#### Brute Force
+Check every possible pair using two nested loops to see if their absolute difference equals $B$. Time Complexity: O(n²).
+
+#### Optimized Solution (Two Pointers)
+First, sort the array. Then use two pointers, `left` starting at 0 and `right` starting at 1. We check the difference `arr[right] - arr[left]`. If it's less than $B$, we need a larger difference, so we move `right`. If it's greater than $B$, we need a smaller difference, so we move `left`.
+
+```java
+import java.util.Arrays;
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        if (!sc.hasNextInt()) return;
+        
+        int t = sc.nextInt(); // if there are test cases, otherwise loop for input
+        while (t-- > 0) {
+            int n = sc.nextInt();
+            int b = sc.nextInt();
+            int[] arr = new int[n];
+            
+            for (int i = 0; i < n; i++) {
+                arr[i] = sc.nextInt();
+            }
+            
+            System.out.println(hasDifferencePair(arr, b) ? 1 : 0);
+        }
+        sc.close();
+    }
+    
+    public static boolean hasDifferencePair(int[] arr, int B) {
+        Arrays.sort(arr);
+        int left = 0;
+        int right = 1;
+        
+        // Handle absolute difference
+        B = Math.abs(B);
+        
+        while (left < arr.length && right < arr.length) {
+            int diff = arr[right] - arr[left];
+            
+            if (left != right && diff == B) {
+                return true;
+            } else if (diff < B) {
+                right++;
+            } else {
+                left++;
+            }
+        }
+        return false;
+    }
+}
+```
+
+#### Complexity
+- **Time:** O(n log n) due to sorting. The two-pointer traversal takes O(n).
+- **Space:** O(1) or O(log n) depending on the sorting algorithm implementation.
 
 ---
 
@@ -457,4 +516,63 @@ class Solution {
 #### Problem Statement Link
 [Official Link](https://leetcode.com/problems/3sum/)
 
-*(Detailed solution and template placeholder)*
+#### Brute Force
+Use three nested loops to find all combinations of three numbers and check if they sum to zero. Use a HashSet to ensure uniqueness. Time Complexity: O(n³).
+
+#### Optimized Solution (Left Fixed + Two Pointers)
+We can reduce the time complexity to O(n²) by sorting the array first. We iterate through the array, fixing the first element `nums[i]`. Then, we use the Opposite Ends two-pointer pattern on the remaining array (`left = i + 1`, `right = nums.length - 1`) to find pairs that sum to `-nums[i]`. We must be careful to skip duplicate elements to avoid duplicate triplets.
+
+```java
+class Solution {
+    public List<List<Integer>> threeSum(int[] nums) {
+        List<List<Integer>> result = new ArrayList<>();
+        // Step 1: Sort the array to easily manage duplicates and use Two Pointers
+        Arrays.sort(nums);
+        
+        for (int i = 0; i < nums.length - 2; i++) {
+            // Optimization: If the fixed number is > 0, sum can never be 0
+            if (nums[i] > 0) break;
+            
+            // Skip duplicates for the first element
+            if (i > 0 && nums[i] == nums[i - 1]) continue;
+            
+            int left = i + 1;
+            int right = nums.length - 1;
+            
+            while (left < right) {
+                int sum = nums[i] + nums[left] + nums[right];
+                
+                if (sum == 0) {
+                    result.add(Arrays.asList(nums[i], nums[left], nums[right]));
+                    
+                    // Skip duplicates for the second and third elements
+                    while (left < right && nums[left] == nums[left + 1]) left++;
+                    while (left < right && nums[right] == nums[right - 1]) right--;
+                    
+                    // Move both pointers after finding a valid triplet
+                    left++;
+                    right--;
+                } else if (sum < 0) {
+                    left++; // We need a larger sum, move left pointer to the right
+                } else {
+                    right--; // We need a smaller sum, move right pointer to the left
+                }
+            }
+        }
+        return result;
+    }
+}
+```
+
+#### Dry Run
+`nums = [-1, 0, 1, 2, -1, -4]`
+1. **Sort:** `[-4, -1, -1, 0, 1, 2]`
+2. **i = 0 (`-4`):** `left` at `-1`, `right` at `2`. Sum = `-3`. Need larger, `left++`. No match found.
+3. **i = 1 (`-1`):** `left` at `-1`, `right` at `2`. Sum = `0`. Match found: `[-1, -1, 2]`.
+   Skip duplicate `-1`, `left` at `0`, `right` at `1`. Sum = `0`. Match found: `[-1, 0, 1]`.
+4. **i = 2 (`-1`):** Skipped (duplicate of `i=1`).
+5. **i = 3 (`0`):** `left` at `1`, `right` at `2`. Sum = `3`. Need smaller, `right--`. Loop ends.
+
+#### Complexity
+- **Time:** O(n²) (Sorting takes O(n log n), nested loops take O(n²)).
+- **Space:** O(1) or O(n) depending on the sorting algorithm. The space for the output list is not counted.

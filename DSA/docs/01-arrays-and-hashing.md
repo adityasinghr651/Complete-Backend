@@ -419,7 +419,39 @@ class Solution {
 #### Problem Statement Link
 [Official Link](https://codeforces.com/problemset/problem/231/A)
 
-*(Detailed solution and template placeholder)*
+#### Brute Force / Optimized Solution
+Since the problem requires us to check each test case independently, the approach is straightforward. We simply read the three integers for each problem and sum them up. If the sum is >= 2, we increment our count.
+
+```java
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        if (!sc.hasNextInt()) return;
+        
+        int n = sc.nextInt();
+        int solvedCount = 0;
+        
+        for (int i = 0; i < n; i++) {
+            int petya = sc.nextInt();
+            int vasya = sc.nextInt();
+            int tonya = sc.nextInt();
+            
+            if (petya + vasya + tonya >= 2) {
+                solvedCount++;
+            }
+        }
+        
+        System.out.println(solvedCount);
+        sc.close();
+    }
+}
+```
+
+#### Complexity
+- **Time:** O(n) where n is the number of problems.
+- **Space:** O(1) as we only use a few variables for counting.
 
 ---
 
@@ -436,4 +468,46 @@ class Solution {
 #### Problem Statement Link
 [Official Link](https://leetcode.com/problems/product-of-array-except-self/)
 
-*(Detailed solution and template placeholder)*
+#### Brute Force
+Calculate the product of all elements, then for each element, divide the total product by that element. However, this fails if there are zeros in the array, and the problem explicitly forbids division. Time: O(n), Space: O(1) (excluding output array). If division is strictly avoided in brute force, we'd use two nested loops: Time: O(n²).
+
+#### Optimized Solution (Prefix and Suffix Products)
+We can compute the product of all elements to the left of each index, and the product of all elements to the right. Multiplying these two gives the desired result. We can optimize the space by computing the left products directly into the answer array, and then maintaining a running right product to multiply on the fly.
+
+```java
+class Solution {
+    public int[] productExceptSelf(int[] nums) {
+        int n = nums.length;
+        int[] result = new int[n];
+        
+        // Step 1: Calculate left prefix products
+        // result[i] will store the product of all elements to the left of i
+        result[0] = 1;
+        for (int i = 1; i < n; i++) {
+            result[i] = result[i - 1] * nums[i - 1];
+        }
+        
+        // Step 2: Calculate right suffix products on the fly and multiply
+        int rightProduct = 1;
+        for (int i = n - 1; i >= 0; i--) {
+            result[i] = result[i] * rightProduct;
+            rightProduct *= nums[i]; // Update right product for the next iteration
+        }
+        
+        return result;
+    }
+}
+```
+
+#### Dry Run
+`nums = [1, 2, 3, 4]`
+- **Left Products:** `result = [1, 1, 2, 6]`
+- **Right Pass (i=3):** `result[3] = 6 * 1 = 6`, `rightProduct = 1 * 4 = 4`
+- **Right Pass (i=2):** `result[2] = 2 * 4 = 8`, `rightProduct = 4 * 3 = 12`
+- **Right Pass (i=1):** `result[1] = 1 * 12 = 12`, `rightProduct = 12 * 2 = 24`
+- **Right Pass (i=0):** `result[0] = 1 * 24 = 24`
+- **Final Result:** `[24, 12, 8, 6]`
+
+#### Complexity
+- **Time:** O(n) (Two passes through the array)
+- **Space:** O(1) (The output array does not count towards space complexity as per problem description).
