@@ -1,3 +1,0 @@
-# LEARNING_PATH
-
-Placeholder.

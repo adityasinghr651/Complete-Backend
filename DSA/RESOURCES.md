@@ -1,3 +1,0 @@
-# RESOURCES
-
-Placeholder.

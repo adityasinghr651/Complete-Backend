@@ -1,3 +1,0 @@
-# CURRICULUM
-
-Placeholder.
