@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=250&section=header&text=DevBrain%20OS&fontSize=70&animation=fadeIn&fontAlignY=38&desc=The%20Open%20Source%20AI%20Engineering%20Operating%20System&descAlignY=55&descAlign=50" alt="Header Banner" />
+</div>
+
 # DevBrain OS
 
 **The Open Source AI Engineering Operating System**
