@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=250&section=header&text=Complete%20Engineering%20Handbook&fontSize=50&animation=fadeIn&fontAlignY=38&desc=The%20Ultimate%20Guide%20to%20Backend%20Engineering%20and%20Data%20Structures&descAlignY=55&descAlign=50" alt="Header Banner" />
   
-  # 🚀 Welcome to the Complete Engineering Handbook
+  # Welcome to the Complete Engineering Handbook
   
   **Your definitive, open-source path from zero to production-grade Software Engineer.**
 
@@ -78,5 +78,5 @@ Our folder structure is intentionally clean and modular:
 ---
 
 <div align="center">
-  <i>Maintained with ❤️ by Aditya Singh and the open-source community.</i>
+  <i>Maintained with ❤️ by Engineers and the open-source community.</i>
 </div>
