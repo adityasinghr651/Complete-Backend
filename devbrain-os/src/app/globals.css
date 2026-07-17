@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens for DevBrain OS.
+ *
+ * Named, single-source-of-truth values instead of hex codes scattered
+ * through components. When the brand shifts, it shifts here once.
+ *
+ *   background     #0B0D12   near-black graphite (the "IDE at night" base)
+ *   surface        #12151C   one step up from background, for cards/panels
+ *   foreground     #E8EAF0   primary text
+ *   muted          #8A93A6   secondary text, captions
+ *   line           #232733   hairline borders, graph edges
+ *   accent         #7C6FEE   electric indigo -- the "synapse" color, primary actions
+ *   accent-signal  #F2A93B   warm amber -- secondary signal color, used sparingly
+ */
+:root {
+  --background: #0b0d12;
+  --surface: #12151c;
+  --foreground: #e8eaf0;
+  --muted: #8a93a6;
+  --line: #232733;
+  --accent: #7c6fee;
+  --accent-signal: #f2a93b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-signal: var(--accent-signal);
+
+  --font-display: var(--font-space-grotesk);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
